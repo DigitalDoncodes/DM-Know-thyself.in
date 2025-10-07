@@ -1,0 +1,22 @@
+# --- Python / Flask ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+instance/
+uploads/
+.DS_Store
+
+# --- Environment & Credentials ---
+.env
+*.env
+*.secret
+*.key
+*.pem
+
+# --- IDE files ---
+.vscode/
+.idea/
+*.swp
