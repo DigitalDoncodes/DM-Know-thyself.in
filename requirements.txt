@@ -23,3 +23,12 @@ python-magic==0.4.27
 filetype==1.2.0
 APScheduler==3.10.4
 pytz==2025.1
+requestsFlask
+Flask-WTF
+Flask-Login
+pymongo
+gunicorn
+python-dotenv
+requestscloudinary
+sib-api-v3-sdk
+email-validator
