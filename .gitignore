@@ -7,6 +7,8 @@ env/
 venv/
 instance/
 uploads/
+backup/
+node_modules/
 .DS_Store
 
 # --- Environment & Credentials ---

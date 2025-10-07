@@ -1,1 +1,0 @@
-{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"lastUse":{"$numberInt":"1"}},"name":"lsidTTLIndex","expireAfterSeconds":{"$numberInt":"1800"}}],"uuid":"a1effbb793db4fbdb3d8b9af75177a38","collectionName":"system.sessions","type":"collection"}
