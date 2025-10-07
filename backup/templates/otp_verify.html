@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Confirm Password Change{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Enter the OTP sent to your email</h3>
+  <form method="post">
+    <div class="mb-3">
+      <input type="text" name="otp" class="form-control" maxlength="6" required placeholder="Enter 6-digit OTP">
+    </div>
+    <button type="submit" class="btn btn-primary">Verify and Update</button>
+    <a href="{{ url_for('edit_profile') }}" class="btn btn-secondary ms-2">Cancel</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Registered Students{% endblock %}
+{% block content %}
+<h2 class="mb-4">Registered Students</h2>
+
+<!-- Filter Toggle Button -->
+<button 
+  class="btn btn-outline-primary mb-3" 
+  type="button" 
+  data-bs-toggle="collapse" 
+  data-bs-target="#filterCollapse" 
+  aria-expanded="false" 
+  aria-controls="filterCollapse"
+>
+  <i class="bi bi-funnel"></i> Show Filters
+</button>
+
+<!-- Collapsible Filter Section -->
+<div class="collapse" id="filterCollapse">
+  <div class="card card-body">
+    <form class="row g-3" method="get" action="{{ url_for('registered_students') }}">
+      <div class="col-md-3">
+        <input type="text" name="name" class="form-control" placeholder="Search by name" value="{{ name_filter }}">
+      </div>
+      <div class="col-md-3">
+        <input type="text" name="student_id" class="form-control" placeholder="Search by ID" value="{{ student_id_filter }}">
+      </div>
+      <div class="col-md-3">
+        <input type="text" name="phone" class="form-control" placeholder="Search by phone" value="{{ phone_filter }}">
+      </div>
+      <div class="col-md-3">
+        <input type="text" name="email" class="form-control" placeholder="Search by email" value="{{ email_filter }}">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Apply Filters</button>
+        <a href="{{ url_for('registered_students') }}" class="btn btn-outline-secondary">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+<table class="table table-striped table-sm">
+  <thead>
+    <tr>
+      {% for col, label in [
+        ("name", "Name"),
+        ("student_id", "Student ID"),
+        ("phone", "Phone"),
+        ("email", "Email"),
+      ] %}
+        <th>
+          <a href="{{ url_for('registered_students',
+              sort=col,
+              direction='desc' if (sort_field == col and direction == 'asc') else 'asc',
+              name=name_filter,
+              student_id=student_id_filter,
+              phone=phone_filter,
+              email=email_filter
+          ) }}">
+            {{ label }}
+            {% if sort_field == col %}
+              {% if direction == 'asc' %}
+                &#9650;
+              {% else %}
+                &#9660;
+              {% endif %}
+            {% endif %}
+          </a>
+        </th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for student in students %}
+      <tr>
+        <td>{{ student.name }}</td>
+        <td>{{ student.student_id or '-' }}</td>
+        <td>{{ student.phone or '-' }}</td>
+        <td>{{ student.email }}</td>
+      </tr>
+    {% else %}
+      <tr>
+        <td colspan="4">No students found.</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

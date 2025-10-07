@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Student Dashboard{% endblock %}
+
+{% block head %}
+<style>
+  /* Overall Dashboard Styling */
+  body { background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%); font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; }
+  .dashboard-container { max-width: 1200px; margin: 40px auto; padding: 20px; animation: fadeIn 1s ease-in; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* Applications Section */
+  .applications-section { margin-bottom: 40px; animation: slideIn 0.8s ease; }
+  @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .applications-table { border-radius: 20px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+  .applications-table th, .applications-table td { padding: 15px; text-align: center; }
+  .applications-table thead { background: linear-gradient(45deg, #2575fc, #6a11cb); color: white; }
+  .upload-form { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
+  .upload-form.expanded { max-height: 300px; padding: 15px; background: #f8f9fa; border-radius: 10px; margin-top: 10px; }
+  .upload-btn { background: linear-gradient(45deg, #43cea2, #185a9d); color: white; border: none; padding: 8px 16px; border-radius: 50px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+  .upload-btn:hover { transform: scale(1.05); box-shadow: 0 4px 10px rgba(67,206,162,0.3); }
+  .progress { height: 10px; margin-top: 10px; }
+
+  /* Job Cards */
+  .job-list { display: flex; flex-direction: column; gap: 20px; }
+  .job-card { 
+    background: white; border-radius: 20px; padding: 20px; cursor: pointer; transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 4px solid transparent; border-image-slice: 1;
+  }
+  .job-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+  .gradient-0 { border-image-source: linear-gradient(45deg, #6a11cb, #2575fc); }
+  .gradient-1 { border-image-source: linear-gradient(45deg, #43cea2, #185a9d); }
+  .gradient-2 { border-image-source: linear-gradient(45deg, #fc466b, #3f5efb); }
+  .gradient-3 { border-image-source: linear-gradient(45deg, #23a6d5, #23d5ab); }
+  .gradient-4 { border-image-source: linear-gradient(45deg, #c471f5, #fa71cd); }
+  .gradient-5 { border-image-source: linear-gradient(45deg, #f7971e, #ffd200); }
+  .job-card:hover { border-image-source: linear-gradient(45deg, #ff9a9e, #fad0c4); }
+  .job-title { font-size: 1.5rem; font-weight: 600; color: #333; margin-bottom: 10px; }
+  .job-description { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; color: #555; font-size: 1rem; line-height: 1.6; }
+  .job-description.expanded { max-height: 500px; padding: 15px 0; border-top: 1px solid #eee; margin-top: 10px; }
+  .apply-btn { background: linear-gradient(45deg, #2575fc, #6a11cb); color: white; border: none; padding: 10px 20px; border-radius: 50px; font-weight: bold; cursor: pointer; transition: all 0.3s; display: none; margin-top: 15px; }
+  .apply-btn:hover { transform: scale(1.05); box-shadow: 0 4px 10px rgba(37,117,252,0.3); }
+  .job-description.expanded + .apply-btn { display: block; }
+
+  /* Flash Messages */
+  .alert { border-radius: 10px; margin-bottom: 20px; animation: slideIn 0.5s ease; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+  <h2 class="text-center mb-4" style="font-size: 2rem; color: #2575fc;">Welcome, {{ current_user.name }}! Manage Your Applications & Explore Jobs</h2>
+
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- Your Applications Section -->
+  <div class="applications-section">
+    <h3 class="text-center mb-3" style="font-size: 1.8rem; color: #185a9d;">Your Active Applications</h3>
+    {% if apps %}
+      <table class="table applications-table">
+        <thead>
+          <tr>
+            <th>Job Title</th>
+            <th>Status</th>
+            <th>Deadline (IST)</th>
+            <th>Feedback</th>  <!-- Modified from "Action" to "Feedback" -->
+          </tr>
+        </thead>
+        <tbody>
+          {% for app in apps %}
+            <tr>
+              <td>{{ app.job.title }}</td>
+              <td>{{ app.status.replace('_', ' ').title() }} {% if app.status_message %}<br><small>{{ app.status_message }}</small>{% endif %}</td>
+              <td>
+                {% if app.resume_deadline %}
+                  {{ app.resume_deadline.strftime('%d %b %Y, %I:%M %p') }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>
+                {{ app.teacher_feedback or 'No feedback yet' }}  <!-- Teacher feedback reflected here -->
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- Relocated Upload Section (expandable if pending) -->
+      {% for app in apps %}
+        {% if app.status == 'pending_resume' and now <= app.resume_deadline %}
+          <div class="mt-3 text-center">
+            <button onclick="toggleUploadForm('{{ app._id }}')" class="upload-btn">Upload Resume for {{ app.job.title }}</button>
+            <div id="upload-form-{{ app._id }}" class="upload-form">
+              <form action="{{ url_for('upload', app_id=app._id) }}" method="POST" enctype="multipart/form-data" onsubmit="return showProgress('{{ app._id }}')">
+                <input type="file" name="resume" accept=".pdf" required class="form-control mb-2">
+                <small class="d-block mb-2 text-muted">Upload a single PDF with your resume and letter of recommendation (max 5MB)Make sure that you name your pdf with your roll number.</small>
+                <button type="submit" class="btn btn-primary">Submit</button>
+                <div class="progress" id="progress-{{ app._id }}" style="display: none;">
+                  <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="progress-bar-{{ app._id }}"></div>
+                </div>
+              </form>
+            </div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      <div class="text-center text-muted" style="font-size: 1.2rem; padding: 20px; background: #f8f9fa; border-radius: 10px;">No active applications yet. Apply to a job below!</div>
+    {% endif %}
+  </div>
+
+  <!-- Available Jobs Section (Clickable Cards) -->
+  <h3 class="text-center mb-3" style="font-size: 1.8rem; color: #185a9d;">Available Jobs</h3>
+  <div class="job-list">
+    {% if jobs %}
+      {% for job in jobs %}
+        {% set gradient_class = 'gradient-' ~ (loop.index0 % 6) %}
+        <div class="job-card {{ gradient_class }}" onclick="toggleDescription(this)" aria-expanded="false" aria-label="Toggle job details">
+          <div class="job-title">{{ job.title }}</div>
+          <div class="job-description" id="desc-{{ job._id }}">
+            <p><strong>Description:</strong> {{ job.description }}</p>
+            <p><strong>Requirements:</strong> {{ job.requirements or 'None specified' }}</p>
+            <p><strong>Vacancies:</strong> {{ job.vacancies }}</p>
+          </div>
+          <form method="POST" action="{{ url_for('apply', job_id=job._id) }}" onsubmit="return confirm('Are you sure you want to apply for this job? You must upload your PDF within 48 hours.')">
+            <button type="submit" class="apply-btn">Apply Now</button>
+          </form>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-center text-muted" style="font-size: 1.2rem; padding: 20px; background: #f8f9fa; border-radius: 10px;">No jobs available at the moment. Check back soon!</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  // Toggle Job Description
+  function toggleDescription(card) {
+    const desc = card.querySelector('.job-description');
+    const btn = card.querySelector('.apply-btn');
+    const isExpanded = desc.classList.toggle('expanded');
+    card.setAttribute('aria-expanded', isExpanded);
+    desc.style.maxHeight = isExpanded ? desc.scrollHeight + 'px' : '0';
+    btn.style.display = isExpanded ? 'block' : 'none';
+  }
+
+  // Toggle Upload Form
+  function toggleUploadForm(appId) {
+    const form = document.getElementById('upload-form-' + appId);
+    form.classList.toggle('expanded');
+    form.style.maxHeight = form.classList.contains('expanded') ? form.scrollHeight + 'px' : '0';
+  }
+
+  // Progress Bar Simulation
+  function showProgress(appId) {
+    const progress = document.getElementById('progress-' + appId);
+    const progressBar = document.getElementById('progress-bar-' + appId);
+    progress.style.display = 'block';
+    let width = 0;
+    const interval = setInterval(() => {
+      if (width >= 100) clearInterval(interval);
+      width += 10;
+      progressBar.style.width = width + '%';
+    }, 200);
+    return true;
+  }
+</script>
+{% endblock %}

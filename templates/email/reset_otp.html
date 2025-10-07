@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; color: #333;">
+  <div style="padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+    <h2 style="color: #007bff;">Know-Thyself Password Reset</h2>
+    <p>Hello {{ user.name or "User" }},</p>
+    <p>Your One-Time Password (OTP) for password reset is:</p>
+    <h1 style="letter-spacing: 4px; color: #28a745;">{{ otp }}</h1>
+    <p>This OTP will expire in 10 minutes.</p>
+    <p>If you didn’t request this, please ignore this email.</p>
+    <p>– The Know-Thyself Team</p>
+  </div>
+</body>
+</html>

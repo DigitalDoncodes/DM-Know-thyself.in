@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+<body>
+  <div style="font-family:Inter, sans-serif;">
+    <img src="{{ getenv('CLOUDINARY_LOGO','https://res.cloudinary.com/demo/image/upload/v1/sample') }}" alt="logo" style="height:48px">
+    <h3>New application submitted</h3>
+    <p>Student <strong>{{ student_name }}</strong> submitted for <strong>{{ job_title }}</strong>.</p>
+    <p>Application ID: {{ app_id }} — submitted on {{ submitted_on }}</p>
+    {% if photo_url %}
+      <p>Photo: <a href="{{ photo_url }}">{{ photo_url }}</a></p>
+    {% endif %}
+    <p>Resume attached.</p>
+  </div>
+</body>
+</html>

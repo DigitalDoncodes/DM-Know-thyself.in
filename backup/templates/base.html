@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Know-Thyself Job Portal{% endblock %}</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+  <!-- Custom Styles -->
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; background: #f8f9fa; }
+    .navbar { background: linear-gradient(45deg, #6a11cb, #2575fc); }
+    .navbar-brand { font-weight: bold; color: white !important; }
+    .nav-link { color: white !important; }
+    .nav-link:hover { color: #ffd !important; }
+    footer { background: #343a40; color: white; padding: 20px 0; text-align: center; margin-top: 40px; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{{ url_for('startpage') }}">Know-Thyself</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('job_list') }}">Jobs</a></li>
+          {% if current_user.is_authenticated %}
+            {% if current_user.role == 'student' %}
+              <li class="nav-item"><a class="nav-link" href="{{ url_for('student_dashboard') }}">Dashboard</a></li>
+            {% elif current_user.role == 'teacher' %}
+              <li class="nav-item"><a class="nav-link" href="{{ url_for('teacher_dashboard') }}">Teacher Dashboard</a></li>
+            {% endif %}
+          {% endif %}
+        </ul>
+        <ul class="navbar-nav">
+          {% if current_user.is_authenticated %}
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
+          {% else %}
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('register') }}">Register</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container my-5">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      &copy; 2025 Know-Thyself Job Portal. All rights reserved.
+    </div>
+  </footer>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

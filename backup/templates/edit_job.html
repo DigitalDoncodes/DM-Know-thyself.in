@@ -1,0 +1,48 @@
+from flask import render_template, redirect, url_for, flash, request
+from flask_login import current_user, login_required
+from bson.objectid import ObjectId
+from werkzeug.utils import secure_filename
+import os
+
+@app.route("/job/edit/<job_id>", methods=["GET", "POST"])
+@login_required
+def edit_job(job_id):
+    # Only teachers allowed
+    if current_user.role != "teacher":
+        return redirect(url_for("index"))
+
+    # Fetch the job from the database
+    job = mongo.db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        flash("Job not found.", "danger")
+        return redirect(url_for("teacher_dashboard"))
+
+    # Instantiate the form and pre-populate with job data on GET
+    form = JobForm()
+    if request.method == "GET":
+        form.title.data = job.get("title", "")
+        form.description.data = job.get("description", "")
+        form.vacancies.data = job.get("vacancies", 6)  # default to 6 if missing
+
+    if form.validate_on_submit():
+        # Handle PoF file upload if present
+        pof_name = job.get("pof_filename")
+        if form.pof.data and form.pof.data.filename:
+            pof_name = secure_filename(form.pof.data.filename)
+            save_path = os.path.join(app.config["UPLOAD_FOLDER"], pof_name)
+            form.pof.data.save(save_path)
+
+        # Update job in MongoDB with all fields
+        mongo.db.jobs.update_one(
+            {"_id": ObjectId(job_id)},
+            {"$set": {
+                "title": form.title.data,
+                "description": form.description.data,
+                "vacancies": form.vacancies.data,    # Allow updating vacancies
+                "pof_filename": pof_name,
+            }}
+        )
+        flash("Job updated successfully.", "success")
+        return redirect(url_for("teacher_dashboard"))
+
+    return render_template("job_form.html", form=form)

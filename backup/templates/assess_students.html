@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Assess Student Applications{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h2 class="mb-4">Assess Student Applications</h2>
+
+  <!-- Collapsible Filter Section -->
+  <button class="btn btn-outline-primary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+    <i class="bi bi-funnel"></i> Filter Applications
+  </button>
+
+  <div class="collapse" id="filterCollapse">
+    <div class="card card-body border-0 shadow">
+      <form method="get">
+        <div class="mb-3">
+          <label for="name" class="form-label">Student Name</label>
+          <input type="text" class="form-control" id="name" name="name"
+                 value="{{ name_filter or '' }}" placeholder="Search by name">
+        </div>
+        <div class="mb-3">
+          <label for="status" class="form-label">Application Status</label>
+          <select class="form-select" id="status" name="status">
+            <option value="">All Statuses</option>
+            {% for status in statuses %}
+              <option value="{{ status }}" {% if status == status_filter %}selected{% endif %}>
+                {{ status.replace('_', ' ').title() }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="resume" class="form-label">Resume Status</label>
+          <select class="form-select" id="resume" name="resume">
+            {% for option in resume_options %}
+              <option value="{{ option.value }}" {% if option.value == resume_filter %}selected{% endif %}>
+                {{ option.label }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+          <a href="{{ url_for('assess_students') }}" class="btn btn-outline-secondary w-100">Clear</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Flash Messages -->
+
+  {% if applications %}
+  <table class="table table-striped align-middle mt-4">
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>Job Title</th>
+        <th>Status</th>
+        <th>Deadline</th>
+        <th>Résumé</th>
+        <th>Resume Upload Time</th>  {# New Column for upload duration #}
+        <th>Teacher Feedback</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for app in applications %}
+      <tr>
+        <td>
+          {{ app.user.name }}<br>
+          <small>{{ app.user.email }}</small>
+        </td>
+        <td>{{ app.job.title }}</td>
+        <td>{{ app.status.replace('_', ' ').title() }}</td>
+        <td>{{ app.resume_deadline.strftime('%Y-%m-%d %H:%M') if app.resume_deadline else '-' }}</td>
+        <td>
+          {% if app.resume_filename %}
+            <a href="{{ url_for('view_resume', filename=app.resume_filename) }}" target="_blank" class="btn btn-sm btn-outline-primary">View</a>
+          {% else %}
+            <span class="text-muted">Not uploaded</span>
+          {% endif %}
+        </td>
+        <td>
+          {# Show upload duration in hours if available #}
+          {% if app.upload_duration_hours is not none %}
+            Uploaded in {{ app.upload_duration_hours }} hours
+          {% else %}
+            &mdash;
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('assess_students') }}" class="d-flex flex-column gap-2">
+            <input type="hidden" name="app_id" value="{{ app._id }}">
+            <textarea name="feedback" rows="2" class="form-control" placeholder="Enter feedback...">{{ app.teacher_feedback }}</textarea>
+        </td>
+        <td>
+            <select name="status" class="form-select mb-2" required>
+              <option value="approved" {% if app.status == 'approved' %}selected{% endif %}>Approve</option>
+              <option value="rejected" {% if app.status == 'rejected' %}selected{% endif %}>Reject</option>
+              <option value="corrections_needed" {% if app.status == 'corrections_needed' %}selected{% endif %}>Request Corrections</option>
+            </select>
+            <button type="submit" class="btn btn-sm btn-success w-100">Update</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="mt-4 text-muted">No applications found.</p>
+  {% endif %}
+</div>
+
+<!-- Bootstrap JS Bundle and Icons -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Clear Applications | Know-Thyself{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="text-center mb-4">
+    <h2 class="fw-bold text-primary">
+      🗑️ Clear Student Applications
+    </h2>
+    <p class="text-muted">View and permanently delete student applications from the database.</p>
+  </div>
+
+  {% if applications %}
+  <div class="table-responsive shadow rounded-4">
+    <table class="table table-hover table-bordered align-middle text-center mb-0">
+      <thead class="table-primary">
+        <tr>
+          <th>Student Name</th>
+          <th>Email</th>
+          <th>Job Title</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for app in applications %}
+        <tr>
+          <td>{{ app.student_name }}</td>
+          <td>{{ app.student_email }}</td>
+          <td>{{ app.job_title }}</td>
+          <td>
+            <span class="badge 
+              {% if app.status == 'submitted' %}bg-info
+              {% elif app.status == 'approved' %}bg-success
+              {% elif app.status == 'rejected' %}bg-danger
+              {% elif app.status == 'corrections_needed' %}bg-warning text-dark
+              {% else %}bg-secondary{% endif %}">
+              {{ app.status|capitalize }}
+            </span>
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('clear_applications') }}" class="d-inline">
+              <!-- ✅ CSRF TOKEN -->
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="app_id" value="{{ app.app_id_str }}">
+              <button type="submit" class="btn btn-danger btn-sm px-3"
+                onclick="return confirm('Are you sure you want to permanently delete this application?');">
+                <i class="fas fa-trash-alt"></i> Clear
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info text-center mt-4 shadow-sm rounded-4">
+    <i class="fas fa-info-circle"></i> No applications available to clear.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

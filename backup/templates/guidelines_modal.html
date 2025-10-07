@@ -1,0 +1,47 @@
+<div class="modal fade" id="guidelines" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Application Guidelines</h5></div>
+      <div class="modal-body">
+        <ol>
+          <li>Create a single PDF résumé.</li>
+          <li>Upload within 48 hours of clicking “Apply”.</li>
+          <li>Maximum file size 5 MB.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- templates/guidelines_modal.html -->
+<div class="modal fade" id="cvGuidelinesModal" tabindex="-1" aria-labelledby="cvGuidelinesLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title" id="cvGuidelinesLabel">Resume Guidelines - Mandatory Contents</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Please ensure your Resume contains the following mandatory sections:</p>
+        <ul>
+          <li>Name</li>
+          <li>Email</li>
+          <li>Professional summary</li>
+          <li>Education</li>
+          <li>Skills</li>
+          <li>Key achievements</li>
+          <li>Professional Experience</li>
+          <li>Projects</li>
+          <li>Awards and recognition</li>
+          <li>Certificates and courses</li>
+          <li>Leadership and extracurricular</li>
+          <li>Additional information (e.g., Language)</li>
+        </ul>
+        <p>Some extra information should be added according to the requirements of the job you apply for.</p>
+        <p class="mb-4">For more queries, contact the <a href="{{ url_for('support') }}" class="fw-bold text-primary text-decoration-underline">support centre</a>.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-info" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

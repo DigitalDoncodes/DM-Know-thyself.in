@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Application Status Update - Know-Thyself</title>
+  <style>
+    body {
+      font-family: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8f9fa;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    .email-container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(90deg, #2563eb, #7c3aed);
+      color: white;
+      padding: 20px 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 1.4rem;
+      margin: 0;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .content p {
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    .status-box {
+      background-color: #f3f4f6;
+      border-left: 5px solid #2563eb;
+      padding: 12px 18px;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+
+    .status {
+      font-weight: bold;
+      font-size: 16px;
+      text-transform: capitalize;
+    }
+
+    .status.approved { color: #16a34a; }
+    .status.rejected { color: #dc2626; }
+    .status.submitted { color: #0284c7; }
+    .status.corrections_needed { color: #ca8a04; }
+    .status.upload_required { color: #7c3aed; }
+
+    .footer {
+      background-color: #f8f9fa;
+      padding: 15px 30px;
+      text-align: center;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .btn {
+      display: inline-block;
+      margin-top: 15px;
+      background-color: #2563eb;
+      color: white;
+      padding: 10px 18px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .btn:hover {
+      background-color: #1d4ed8;
+    }
+
+    @media (max-width: 600px) {
+      .email-container { margin: 10px; }
+      .content { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <h1>📢 Application Status Update</h1>
+    </div>
+
+    <div class="content">
+      <p>Dear <strong>{{ student_name }}</strong>,</p>
+      <p>
+        Your application for the position <strong>{{ job_title }}</strong> has been reviewed by your teacher.
+      </p>
+
+      <div class="status-box">
+        <p>Your current status: 
+          <span class="status {{ status|lower }}">{{ status|capitalize }}</span>
+        </p>
+      </div>
+
+      {% if feedback %}
+      <p><strong>Teacher's Feedback:</strong></p>
+      <blockquote style="margin: 10px 0; padding: 12px 16px; background: #f9fafb; border-left: 4px solid #7c3aed; border-radius: 6px;">
+        {{ feedback }}
+      </blockquote>
+      {% endif %}
+
+      {% if status == "approved" %}
+      <p>🎉 Congratulations! Your application has been approved. Please wait for further instructions from your teacher or placement cell.</p>
+      {% elif status == "rejected" %}
+      <p>We appreciate your effort and encourage you to apply for other opportunities that align with your skills.</p>
+      {% elif status == "corrections_needed" %}
+      <p>⚠️ Please review the feedback above and resubmit your updated details promptly.</p>
+      {% elif status == "upload_required" %}
+      <p>📎 Kindly upload your resume and photo within 48 hours to proceed with your application.</p>
+      {% endif %}
+
+      <a href="https://knowthyself.app/login" class="btn">Go to Know-Thyself</a>
+
+      <p style="margin-top: 20px;">Last updated: {{ now().strftime('%d %b %Y, %I:%M %p') }}</p>
+    </div>
+
+    <div class="footer">
+      &copy; {{ now().year }} Know-Thyself | Empowering Student Growth<br>
+      <small>This is an automated email — please do not reply directly.</small>
+    </div>
+  </div>
+</body>
+</html>

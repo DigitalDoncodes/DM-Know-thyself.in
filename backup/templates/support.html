@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block title %}Support Center{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold">Support Center</h1>
+        <p class="lead text-muted">Find answers to common questions and get help with the platform.</p>
+    </div>
+
+    <!-- Account & Registration Questions -->
+    <h3 class="mb-3 text-primary">Account & Registration</h3>
+    <div class="accordion mb-4" id="accountAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="accountOne">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAccount1">
+                    How do I create a student account?
+                </button>
+            </h2>
+            <div id="collapseAccount1" class="accordion-collapse collapse" data-bs-parent="#accountAccordion">
+                <div class="accordion-body">
+                    Click on "Sign Up" from the login page. Fill in your student ID, full name, email, phone number, and create a secure password. Your account will be created immediately and you can start using the portal.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="accountTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAccount2">
+                    I forgot my password, how can I reset it?
+                </button>
+            </h2>
+            <div id="collapseAccount2" class="accordion-collapse collapse" data-bs-parent="#accountAccordion">
+                <div class="accordion-body">
+                    Currently, password reset must be done manually. Please contact our support team at <a href="mailto:psychologyresumemail@gmail.com">psychologyresumemail@gmail.com</a> with your student ID and registered email for assistance.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="accountThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAccount3">
+                    Why is my student ID not working during login?
+                </button>
+            </h2>
+            <div id="collapseAccount3" class="accordion-collapse collapse" data-bs-parent="#accountAccordion">
+                <div class="accordion-body">
+                    Make sure you're entering your student ID exactly as you registered it. Student IDs are case-sensitive. If you're still having trouble, contact support with your registration details.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Application Process -->
+    <h3 class="mb-3 text-primary">Job Application Process</h3>
+    <div class="accordion mb-4" id="applicationAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="appOne">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseApp1">
+                    How can a student apply for a job?
+                </button>
+            </h2>
+            <div id="collapseApp1" class="accordion-collapse collapse" data-bs-parent="#applicationAccordion">
+                <div class="accordion-body">
+                    Students can view open jobs on their dashboard and click the "Apply Now" button. You can only have one active application at a time to ensure focused job searching.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="appTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseApp2">
+                    Why can I only apply for one job at a time?
+                </button>
+            </h2>
+            <div id="collapseApp2" class="accordion-collapse collapse" data-bs-parent="#applicationAccordion">
+                <div class="accordion-body">
+                    This policy ensures students give their full attention to each application and helps maintain quality applications. Once your current application is completed (approved/rejected), you can apply for another position.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="appThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseApp3">
+                    How long do I have to upload my resume after applying?
+                </button>
+            </h2>
+            <div id="collapseApp3" class="accordion-collapse collapse" data-bs-parent="#applicationAccordion">
+                <div class="accordion-body">
+                    You have <strong>48 hours</strong> from the time you click "Apply Now" to upload your resume. After this deadline, your application will be automatically rejected.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="appFour">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseApp4">
+                    What file formats are accepted for resume upload?
+                </button>
+            </h2>
+            <div id="collapseApp4" class="accordion-collapse collapse" data-bs-parent="#applicationAccordion">
+                <div class="accordion-body">
+                    Only <strong>PDF files</strong> are accepted for resume uploads. Please convert your resume to PDF format before uploading to ensure compatibility and formatting preservation. [Maximum File Upload Size 5MB]
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Status & Timeline -->
+    <h3 class="mb-3 text-primary">Application Status & Timeline</h3>
+    <div class="accordion mb-4" id="statusAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="statusOne">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStatus1">
+                    When will my job be confirmed?
+                </button>
+            </h2>
+            <div id="collapseStatus1" class="accordion-collapse collapse" data-bs-parent="#statusAccordion">
+                <div class="accordion-body">
+                    Your application will be reviewed by the teacher once your resume is uploaded within <strong>48 hours</strong> of applying. After the review process is complete, you will receive confirmation about your application status.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="statusTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStatus2">
+                    How do I check the status of my application?
+                </button>
+            </h2>
+            <div id="collapseStatus2" class="accordion-collapse collapse" data-bs-parent="#statusAccordion">
+                <div class="accordion-body">
+                    Log into your student dashboard to view your current application status. The status will show as "Pending Resume," "Submitted," "Approved," "Rejected," or "Corrections Needed."
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="statusThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStatus3">
+                    What does 'corrections_needed' status mean?
+                </button>
+            </h2>
+            <div id="collapseStatus3" class="accordion-collapse collapse" data-bs-parent="#statusAccordion">
+                <div class="accordion-body">
+                    This means the teacher has reviewed your application and requires some modifications or additional information. Check for feedback comments and contact support if you need clarification on what changes are needed.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Issues -->
+    <h3 class="mb-3 text-primary">Technical Issues</h3>
+    <div class="accordion mb-4" id="technicalAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="techOne">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTech1">
+                    Who can I contact for technical issues?
+                </button>
+            </h2>
+            <div id="collapseTech1" class="accordion-collapse collapse" data-bs-parent="#technicalAccordion">
+                <div class="accordion-body">
+                    For technical support, please email us at 
+                    <a href="mailto:psychologyresumemail@gmail.com">psychologyresumemail@gmail.com</a> or 
+                    <a href="mailto:dhatchinamoorthiai@gmail.com">dhatchinamoorthiai@gmail.com</a> 
+                    or visit our <a href="{{ url_for('contact') }}">Contact Us</a> page.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="techTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTech2">
+                    I uploaded my resume but it's not showing, what's wrong?
+                </button>
+            </h2>
+            <div id="collapseTech2" class="accordion-collapse collapse" data-bs-parent="#technicalAccordion">
+                <div class="accordion-body">
+                    This could be due to file format issues (only PDF accepted), file size too large (max 5MB), or network problems. Try refreshing the page, or re-upload your resume. If the problem persists, contact technical support.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="techThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTech3">
+                    Why is the 'Apply Now' button disabled?
+                </button>
+            </h2>
+            <div id="collapseTech3" class="accordion-collapse collapse" data-bs-parent="#technicalAccordion">
+                <div class="accordion-body">
+                    The button is disabled if: (1) You already have an active application for another job, (2) The job has no more vacancies available, or (3) You've already applied for this specific job.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resume & Documents -->
+    <h3 class="mb-3 text-primary">Resume & Documents</h3>
+    <div class="accordion mb-4" id="resumeAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="resumeOne">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseResume1">
+                    What should I include in my resume?
+                </button>
+            </h2>
+            <div id="collapseResume1" class="accordion-collapse collapse" data-bs-parent="#resumeAccordion">
+                <div class="accordion-body">
+                    Include your personal information, educational background, skills, any work experience or internships, projects, certifications, and relevant achievements. Keep it concise, well-formatted, and tailored to the job you're applying for.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="resumeTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseResume2">
+                    What's the maximum file size for resume upload?
+                </button>
+            </h2>
+            <div id="collapseResume2" class="accordion-collapse collapse" data-bs-parent="#resumeAccordion">
+                <div class="accordion-body">
+                    The maximum file size allowed is <strong>5MB</strong>. Most PDF resumes are well under this limit. If your file is too large, try compressing the PDF or reducing image quality if it contains photos.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="resumeThree">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseResume3">
+                    What should I do if I uploaded the wrong resume or applied for the wrong job?
+                </button>
+            </h2>
+            <div id="collapseResume3" class="accordion-collapse collapse" data-bs-parent="#resumeAccordion">
+                <div class="accordion-body">
+                    If you've uploaded an incorrect resume or applied for the wrong position, please reach out to us immediately. Draft an email explaining your situation and send it to 
+                    <a href="mailto:psychologyresumemail@gmail.com">psychologyresumemail@gmail.com</a> or 
+                    <a href="mailto:dhatchinamoorthiai@gmail.com">dhatchinamoorthiai@gmail.com</a>. 
+                    Our team will review your request and help resolve the issue promptly.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job-Related Questions -->
+    <h3 class="mb-3 text-primary">Job-Related Questions</h3>
+    <div class="accordion mb-4" id="jobAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="jobOne">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseJob1">
+                    How can I see all available jobs?
+                </button>
+            </h2>
+            <div id="collapseJob1" class="accordion-collapse collapse" data-bs-parent="#jobAccordion">
+                <div class="accordion-body">
+                    All available jobs are displayed on your student dashboard when you log in. Only "open" jobs with available vacancies are shown. New jobs are posted regularly by teachers and placement officers.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="jobTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseJob2">
+                    Can I apply for multiple positions from the same company?
+                </button>
+            </h2>
+            <div id="collapseJob2" class="accordion-collapse collapse" data-bs-parent="#jobAccordion">
+                <div class="accordion-body">
+                    Due to the one-active-application policy, you can only apply for one position at a time, regardless of whether they're from the same company or different companies. Focus on the role that best matches your interests and qualifications.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile & Accessibility -->
+    <h3 class="mb-3 text-primary">Mobile & Accessibility</h3>
+    <div class="accordion mb-4" id="mobileAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="mobileOne">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMobile1">
+                    Can I use this portal on my smartphone?
+                </button>
+            </h2>
+            <div id="collapseMobile1" class="accordion-collapse collapse" data-bs-parent="#mobileAccordion">
+                <div class="accordion-body">
+                    Yes! The portal is fully responsive and works on smartphones, tablets, and computers. All features including job browsing, application submission, and resume upload work seamlessly on mobile devices.
+                </div>
+            </div>
+        </div>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="mobileTwo">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMobile2">
+                    Does the portal work on all browsers?
+                </button>
+            </h2>
+            <div id="collapseMobile2" class="accordion-collapse collapse" data-bs-parent="#mobileAccordion">
+                <div class="accordion-body">
+                    The portal works best on modern browsers like Chrome, Firefox, Safari, and Edge. For the best experience, please ensure your browser is updated to the latest version.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Still Need Help Section -->
+    <div class="text-center mt-5 p-4 bg-light rounded">
+        <h4>Still Need Help?</h4>
+        <p>If you couldn't find the answer to your question, don't hesitate to reach out to our support team.</p>
+        <div class="d-flex justify-content-center gap-3">
+            <a href="mailto:psychologyresumemail@gmail.com" class="btn btn-primary">Email Support</a>
+            <a href="{{ url_for('contact') }}" class="btn btn-outline-primary">Contact Us</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

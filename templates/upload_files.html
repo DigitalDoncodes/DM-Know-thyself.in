@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Upload Files | Know-Thyself{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>Upload Resume & Photo</h3>
+
+  <div class="card p-3 shadow-sm">
+    <p><strong>Job:</strong> {{ app.job_title }}</p>
+    <p><strong>Application ID:</strong> {{ app._id_str }}</p>
+
+    {% if app.status == 'submitted' %}
+      <div class="alert alert-success">Files already uploaded. You can reupload only if teacher requests corrections.</div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label for="resume" class="form-label">Resume (PDF/DOC/DOCX)</label>
+        <input class="form-control" type="file" id="resume" name="resume" accept=".pdf,.doc,.docx">
+      </div>
+      <div class="mb-3">
+        <label for="photo" class="form-label">Photo (JPG/PNG)</label>
+        <input class="form-control" type="file" id="photo" name="photo" accept=".jpeg,.jpg,.png">
+      </div>
+
+      <button type="submit" class="btn btn-primary">Upload</button>
+      <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+
+    {% if deadline_iso %}
+      <p class="mt-3"><strong>Upload deadline:</strong> <span id="uploadDeadline" data-deadline="{{ deadline_iso }}"></span></p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById("uploadDeadline");
+  if (!el) return;
+  const target = new Date(el.dataset.deadline).getTime();
+
+  function tick() {
+    const diff = target - Date.now();
+    if (diff <= 0) {
+      el.innerText = "Expired";
+      return;
+    }
+    const h = Math.floor(diff / (1000*60*60));
+    const m = Math.floor((diff % (1000*60*60)) / (1000*60));
+    const s = Math.floor((diff % (1000*60)) / 1000);
+    el.innerText = `${String(h).padStart(2,'0')}h : ${String(m).padStart(2,'0')}m : ${String(s).padStart(2,'0')}s`;
+  }
+  tick();
+  setInterval(tick, 1000);
+});
+</script>
+{% endblock %}

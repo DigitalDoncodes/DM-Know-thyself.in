@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+<body>
+  <div style="font-family:Inter, sans-serif;">
+    <img src="{{ getenv('CLOUDINARY_LOGO','https://res.cloudinary.com/demo/image/upload/v1/sample') }}" alt="logo" style="height:48px">
+    <h3>Thanks — we received your application</h3>
+    <p>Hi {{ student_name }},</p>
+    <p>We have received your submission for <strong>{{ job_title }}</strong>.</p>
+    <p>Application ID: {{ app_id }} (submitted on {{ submitted_on }})</p>
+    <p>We'll get back to you soon.</p>
+  </div>
+</body>
+</html>

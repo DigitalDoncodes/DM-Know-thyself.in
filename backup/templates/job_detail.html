@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }}{% endblock %}
+{% block content %}
+<h2>{{ job.title }}</h2>
+<p>{{ job.description }}</p>
+{% if job.pof_filename %}
+  <p><a href="{{ url_for('download', filename=job.pof_filename) }}">Download PoF</a></p>
+{% endif %}
+{% endblock %}

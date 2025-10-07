@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Edit My Details{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Edit My Details</h2>
+{% if current_user.role == 'teacher' %}
+  <a href="{{ url_for('edit_teacher_profile') }}">Edit My Profile</a>
+{% elif current_user.role == 'student' %}
+  <a href="{{ url_for('edit_profile') }}">Edit My Profile</a>
+{% endif %}
+
+  <!-- Display flashed messages (success, error) if any -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+      {{ form.name.label(class="form-label") }}
+      {{ form.name(class="form-control", placeholder="Enter your full name") }}
+      {% if form.name.errors %}
+        <div class="text-danger small">
+          {{ form.name.errors[0] }}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.email.label(class="form-label") }}
+      {{ form.email(class="form-control", placeholder="Enter your email address") }}
+      {% if form.email.errors %}
+        <div class="text-danger small">
+          {{ form.email.errors[0] }}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.phone.label(class="form-label") }}
+      {{ form.phone(class="form-control", placeholder="Enter your phone number") }}
+      {% if form.phone.errors %}
+        <div class="text-danger small">
+          {{ form.phone.errors[0] }}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.password.label(class="form-label") }}
+      {{ form.password(class="form-control", autocomplete="new-password", placeholder="Enter new password if changing") }}
+      <div class="form-text">Leave blank if you do not want to change your password.</div>
+      {% if form.password.errors %}
+        <div class="text-danger small">
+          {{ form.password.errors[0] }}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.confirm.label(class="form-label") }}
+      {{ form.confirm(class="form-control", placeholder="Confirm new password") }}
+      {% if form.confirm.errors %}
+        <div class="text-danger small">
+          {{ form.confirm.errors[0] }}
+        </div>
+      {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-success">Save Changes</button>
+    <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary ms-2">Cancel</a>
+    <a href="{{ url_for('edit_teacher_profile') }}">Edit My Profile</a>
+
+  </form>
+</div>
+{% endblock %}
