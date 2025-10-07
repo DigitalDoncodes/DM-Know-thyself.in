@@ -23,7 +23,8 @@ python-magic==0.4.27
 filetype==1.2.0
 APScheduler==3.10.4
 pytz==2025.1
-requestsFlask
+requests
+Flask
 Flask-WTF
 Flask-Login
 pymongo
