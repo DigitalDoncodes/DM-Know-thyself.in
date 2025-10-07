@@ -30,6 +30,6 @@ Flask-Login
 pymongo
 gunicorn
 python-dotenv
-requestscloudinary
+cloudinary
 sib-api-v3-sdk
 email-validator
