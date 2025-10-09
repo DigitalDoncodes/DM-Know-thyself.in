@@ -8,7 +8,11 @@
   <div class="card p-3 shadow-sm">
     <p><strong>Job:</strong> {{ app.job_title }}</p>
     <p><strong>Application ID:</strong> {{ app._id_str }}</p>
-
+{% if app.status == 'corrections_needed' %}
+<div class="alert alert-warning text-center fw-semibold mt-3">
+  ⚙️ Corrections Needed — Please re-upload updated resume or photo.
+</div>
+{% endif %}
     {% if app.status == 'submitted' %}
       <div class="alert alert-success">Files already uploaded. You can reupload only if teacher requests corrections.</div>
     {% endif %}

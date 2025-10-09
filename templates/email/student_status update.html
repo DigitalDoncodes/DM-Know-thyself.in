@@ -106,7 +106,7 @@
 
       <div class="status-box">
         <p>Your current status: 
-          <span class="status {{ status|lower }}">{{ status|capitalize }}</span>
+          <span class="status {{ status|lower }}">{{ status|replace('_',' ')|capitalize }}</span>
         </p>
       </div>
 
@@ -127,13 +127,13 @@
       <p>📎 Kindly upload your resume and photo within 48 hours to proceed with your application.</p>
       {% endif %}
 
-      <a href="https://knowthyself.app/login" class="btn">Go to Know-Thyself</a>
+      <a href="https://know-thyself.in/login" class="btn">Go to Know-Thyself</a>
 
-      <p style="margin-top: 20px;">Last updated: {{ now().strftime('%d %b %Y, %I:%M %p') }}</p>
+      <p style="margin-top: 20px;">Last updated: {{ now().strftime('%d %b %Y, %I:%M %p') if now is defined else '' }}</p>
     </div>
 
     <div class="footer">
-      &copy; {{ now().year }} Know-Thyself | Empowering Student Growth<br>
+      &copy; {{ now().year if now is defined else '' }} Know-Thyself | Empowering Student Growth<br>
       <small>This is an automated email — please do not reply directly.</small>
     </div>
   </div>

@@ -59,7 +59,92 @@ from wtforms.validators import DataRequired
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired
+# ---- Put this once near top of app.py ----
+import threading
+import requests
+import base64
+from datetime import datetime
 
+BREVO_SEND_URL = "https://api.brevo.com/v3/smtp/email"
+BREVO_API_KEY = os.getenv("BREVO_API_KEY")  # ensure set in Render env
+FROM_NAME = os.getenv("FROM_NAME", "Know-Thyself")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "no-reply@example.com")
+
+def _call_brevo(payload, headers):
+    """Internal synchronous call to Brevo with logging."""
+    try:
+        resp = requests.post(BREVO_SEND_URL, headers=headers, json=payload, timeout=15)
+        print(f"✅ [Brevo] {resp.status_code} | {resp.text[:300]}")
+        logger.info("Brevo response: %s %s", resp.status_code, resp.text[:300])
+        resp.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"❌ [Brevo] send failed: {e}")
+        logger.exception("Brevo send failed: %s", e)
+        return False
+
+def send_brevo_email(to_email, to_name, subject, html_content, attachments=None, async_send=False, retries=3, delay=3):
+    """
+    Robust Brevo email sender with retry logic and async support.
+    - retries: number of times to retry if API fails
+    - delay: seconds between retries
+    """
+    import threading, time
+    from datetime import datetime
+
+    print(f"📧 [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Preparing mail to {to_email} | subj: {subject}")
+
+    if not BREVO_API_KEY:
+        print("🚫 Missing BREVO_API_KEY — email not sent.")
+        logger.warning("Missing BREVO_API_KEY; attempted send to %s", to_email)
+        return False
+
+    payload = {
+        "sender": {"name": FROM_NAME, "email": FROM_EMAIL},
+        "to": [{"email": to_email, "name": to_name or ""}],
+        "subject": subject,
+        "htmlContent": html_content,
+    }
+    if attachments:
+        payload["attachment"] = attachments
+
+    headers = {
+        "accept": "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json",
+    }
+
+    def _send():
+        for attempt in range(1, retries + 1):
+            try:
+                resp = requests.post(BREVO_SEND_URL, headers=headers, json=payload, timeout=10)
+                if resp.status_code in (200, 201, 202):
+                    print(f"✅ [Brevo] Success (Attempt {attempt}) | {resp.status_code} | {resp.text[:200]}")
+                    logger.info("Brevo email success (%s): %s", attempt, resp.text[:150])
+                    return True
+                else:
+                    print(f"⚠️ [Brevo] Attempt {attempt} failed: {resp.status_code} | {resp.text[:200]}")
+                    time.sleep(delay)
+            except Exception as e:
+                print(f"❌ [Brevo] Attempt {attempt} failed: {e}")
+                logger.exception("Brevo send attempt %s failed: %s", attempt, e)
+                time.sleep(delay)
+        print("🚫 All retry attempts failed.")
+        return False
+
+    if async_send:
+        threading.Thread(target=_send, daemon=True).start()
+        print("🟡 Sent mail asynchronously (background thread)")
+        return True
+    else:
+        return _send()
+
+def make_attachment_from_file_path(filepath):
+    if not filepath or not os.path.exists(filepath):
+        return None
+    with open(filepath, "rb") as fh:
+        b = fh.read()
+    return {"name": os.path.basename(filepath), "content": base64.b64encode(b).decode("utf-8")}
 class LoginForm(FlaskForm):
     email_or_sid = StringField("Email or SID", validators=[DataRequired()])
     password = PasswordField("Password", validators=[DataRequired()])
@@ -140,7 +225,7 @@ logger = logging.getLogger("know-thyself")
 # -------------------------
 # MongoDB connection
 # -------------------------
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://Digitaldoncodes:digitaldoncodesx@know-thyself.1m8vekk.mongodb.net")
 client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=2000)
 db = client["portal"]  # your local DB (portal)
 users_col = db["users"]
@@ -150,6 +235,17 @@ growth_col = db["growth_responses"]
 self_assess_col = db["self_assessments"]
 otp_col = db["otp_store"]
 
+# Add these imports at top:
+from gridfs import GridFS
+from pymongo.errors import PyMongoError
+
+# After db = client["portal"]
+try:
+    fs = GridFS(db)
+    logger.info("GridFS initialized.")
+except Exception as e:
+    logger.exception("GridFS init failed: %s", e)
+    fs = None
 # -------------------------
 # Brevo config (SendinBlue)
 # -------------------------
@@ -253,46 +349,45 @@ def mongo_objid_from_str(s):
 # -------------------------
 # Brevo (Send email) wrapper
 # -------------------------
-def send_brevo_email(to_email, to_name, subject, html_content, attachments=None):
-    """
-    Send transactional email via Brevo.
-    """
-    if not BREVO_API_KEY:
-        logger.warning("No BREVO_API_KEY set — skipping email send to %s", to_email)
-        print(f"❌ Email not sent: Missing BREVO_API_KEY for {to_email}")
+
+def send_status_email_for_application(application, new_status, feedback=""):
+    # application is the DB doc from applications_col
+    # find student
+    student = None
+    if application.get("applicant_id"):
+        try:
+            student = users_col.find_one({"_id": application.get("applicant_id")})
+        except Exception:
+            pass
+    if not student and application.get("student_id"):
+        student = users_col.find_one({"student_id": application.get("student_id")})
+
+    job = None
+    if application.get("job_id"):
+        try:
+            job = jobs_col.find_one({"_id": application.get("job_id")})
+        except Exception:
+            pass
+
+    if not student or not student.get("email"):
+        logger.warning("No student email found for application %s", application.get("_id"))
         return False
 
-    payload = {
-        "sender": {"name": FROM_NAME, "email": FROM_EMAIL},
-        "to": [{"email": to_email, "name": to_name or ""}],
-        "subject": subject,
-        "htmlContent": html_content
-    }
-    if attachments:
-        payload["attachment"] = attachments  # [{name, content}]
+    html = render_template(
+        "email/student_status_update.html",
+        student_name=student.get("name", "Student"),
+        job_title=(job.get("title") if job else application.get("job_title", "Application")),
+        status=new_status,
+        feedback=feedback,
+        now=datetime.now
+    )
 
-    headers = {
-        "accept": "application/json",
-        "api-key": BREVO_API_KEY,
-        "content-type": "application/json"
-    }
+    # If corrections_needed, include a quick call-to-action in subject
+    subject = f"Update on your application: {job.get('title') if job else ''} — {new_status.replace('_',' ').capitalize()}"
 
-    print(f"📤 Sending email to {to_email} | Subject: {subject}")
-    try:
-        resp = requests.post(BREVO_SEND_URL, headers=headers, json=payload, timeout=10)
-        print(f"✅ Brevo response: {resp.status_code} | {resp.text[:200]}")
-        logger.info("Brevo send status: %s %s", resp.status_code, resp.text)
-        resp.raise_for_status()
-        return True
-    except Exception as e:
-        print(f"❌ Brevo email send failed: {e}")
-        logger.exception("Failed to send Brevo email: %s", e)
-        return False
-def send_brevo_email_async(*args, **kwargs):
-    """Fire-and-forget email sending using a daemon thread.
-    For production, replace with Celery/RQ to guarantee delivery and retries."""
-    t = threading.Thread(target=send_brevo_email, args=args, kwargs=kwargs, daemon=True)
-    t.start()
+    # send in background to avoid blocking
+    return send_brevo_email(student.get("email"), student.get("name"), subject, html, sync=False)
+
 import os, base64, requests, logging
 from dotenv import load_dotenv
 
@@ -321,41 +416,6 @@ def make_attachment_from_file_path(filepath):
 
 
 # --- Helper: Send Brevo Email ---
-def send_brevo_email(to_email, to_name, subject, html_content, attachments=None):
-    """
-    Send transactional email via Brevo API.
-    """
-    if not BREVO_API_KEY:
-        logger.warning("No BREVO_API_KEY set — skipping email send to %s", to_email)
-        print(f"❌ Email not sent — missing BREVO_API_KEY for {to_email}")
-        return False
-
-    payload = {
-        "sender": {"name": FROM_NAME, "email": FROM_EMAIL},
-        "to": [{"email": to_email, "name": to_name or ""}],
-        "subject": subject,
-        "htmlContent": html_content,
-    }
-
-    if attachments:
-        payload["attachment"] = attachments
-
-    headers = {
-        "accept": "application/json",
-        "api-key": BREVO_API_KEY,
-        "content-type": "application/json"
-    }
-
-    try:
-        response = requests.post(BREVO_SEND_URL, headers=headers, json=payload, timeout=10)
-        logger.info("📤 Brevo status: %s | %s", response.status_code, response.text[:150])
-        response.raise_for_status()
-        print(f"✅ Email sent to {to_email}")
-        return True
-    except Exception as e:
-        logger.error("❌ Failed to send Brevo email: %s", e)
-        return False
-
 # -------------------------
 # Users for Flask-Login
 # -------------------------
@@ -395,6 +455,59 @@ def teacher_required(func):
             return redirect(url_for("login"))
         return func(*args, **kwargs)
     return wrapper
+
+@app.route("/debug/application/<app_id>")
+def debug_application(app_id):
+    """Inspect a specific application document (for debugging only)."""
+    try:
+        app_doc = applications_col.find_one({"_id": ObjectId(app_id)})
+        if not app_doc:
+            return jsonify({"ok": False, "error": "Application not found"}), 404
+
+        # Convert ObjectId fields for JSON safety
+        app_doc["_id"] = str(app_doc["_id"])
+        if app_doc.get("applicant_id"):
+            app_doc["applicant_id"] = str(app_doc["applicant_id"])
+        if app_doc.get("job_id"):
+            app_doc["job_id"] = str(app_doc["job_id"])
+
+        # Attach student info
+        student = users_col.find_one({"_id": mongo_objid_from_str(app_doc.get("applicant_id"))})
+        if student:
+            app_doc["student_name"] = student.get("name")
+            app_doc["student_email"] = student.get("email")
+
+        return jsonify({"ok": True, "application": app_doc}), 200
+    except Exception as e:
+        logger.exception("Debug route failed: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/test-email")
+def test_email():
+    """Debug route to verify Brevo mail sending works on Render."""
+    from datetime import datetime
+    print("🟡 [Render] Test email route hit at", datetime.now())
+
+    html = render_template(
+        "email/student_status_update.html",
+        student_name="Test Student",
+        job_title="Test Job",
+        status="approved",
+        feedback="Everything looks great!",
+        now=datetime.now
+    )
+
+    ok = send_brevo_email(
+        "dhatchinamoorthiat@gmail.com",  # change this to your real address
+        "Test User",
+        "✅ Know-Thyself | Render Mail Test",
+        html,
+        sync=True
+    )
+
+    print("🟢 [Render] Mail send result:", ok)
+    logger.info("🟢 [Render] Mail send result: %s", ok)
+    return f"<h3>Mail send result: {ok}</h3>"
 
 def student_required(func):
     @wraps(func)
@@ -494,37 +607,74 @@ def register():
 @login_required
 @student_required
 def student_dashboard():
-    # fetch all jobs and the student's applications
-    jobs_cursor = jobs_col.find().sort("created_at", -1)
-    jobs = []
-    for j in jobs_cursor:
-        j = objectid_to_str(j)
-        # compute vacancy display
-        j["vacancies"] = j.get("vacancies", 0)
-        # deadline display convert to IST string if exists
-        j["deadline_str"] = utc_to_ist_str(j.get("deadline"))
-        jobs.append(j)
+    """Display all jobs and the student's active application with full tracking."""
+    student_id = str(current_user.id)
+    try:
+        student_oid = ObjectId(student_id)
+    except Exception:
+        student_oid = None
 
-    apps = []
-    for a in applications_col.find({"applicant_id": ObjectId(current_user.id)}).sort("application_time", -1):
-        # enrich
-        a = objectid_to_str(a)
-        job = jobs_col.find_one({"_id": mongo_objid_from_str(a.get("job_id"))}) if a.get("job_id") else None
-        a["job_title"] = job.get("title") if job else a.get("job_title", "Unknown Job")
-        # progress status mapping
-        status_stages = ["submitted", "under_review", "corrections_needed", "approved", "rejected"]
-        current_status = a.get("status", "submitted")
-        a["status_index"] = status_stages.index(current_status) if current_status in status_stages else 0
-        # transform times
-        a["deadline_str"] = utc_to_ist_str(a.get("deadline"))
-        a["resume_upload_ist"] = utc_to_ist_str(a.get("resume_upload_time"))
-        apps.append(a)
+    print(f"🟢 [DEBUG] Current Student ID: {student_id}")
 
-    # check if has active (pending/submit)
-    has_active = any(a["status"] in ("submitted", "under_review", "corrections_needed") for a in apps)
-    active_app = next((a for a in apps if a["status"] in ("submitted", "under_review", "corrections_needed")), None)
-    return render_template("student_dashboard.html", jobs=jobs, applications=apps, has_active=has_active, active_app=active_app, current_user=current_user,     timedelta=timedelta  # 👈 Add this line
-)
+    # Match both ObjectId and string for user_id, applicant_id, student_id
+    query = {
+        "$or": [
+            {"applicant_id": student_oid},
+            {"applicant_id": student_id},
+            {"student_id": student_id},
+            {"user_id": student_oid},
+            {"user_id": student_id},
+        ]
+    }
+
+    print(f"🟢 [DEBUG] Query being used: {query}")
+
+    applications = list(applications_col.find(query).sort("application_time", -1))
+    print(f"🟢 [DEBUG] Found {len(applications)} applications for this student.")
+
+    for a in applications:
+        print(f"   - App: {a.get('_id')} | Job: {a.get('job_title')} | Status: {a.get('status')} | user_id={a.get('user_id')}")
+
+    # --- Load jobs ---
+    jobs = [objectid_to_str(j) for j in jobs_col.find().sort("created_at", -1)]
+
+    # --- Enrich application data ---
+    for a in applications:
+     job = jobs_col.find_one({"_id": mongo_objid_from_str(a.get("job_id"))})
+    a["job_title"] = job.get("title") if job else a.get("job_title", "Unknown Job")
+
+    # ✅ Ensure application_time exists (fallback to created_at or now)
+    if not a.get("application_time"):
+        a["application_time"] = a.get("created_at") or local_dt_now()
+
+    # progress bar stage tracking
+    stages = ["submitted", "under_review", "corrections_needed", "approved", "rejected"]
+    a["status_index"] = stages.index(a.get("status", "submitted")) if a.get("status") in stages else 0
+
+    # Format time fields
+    a["deadline_str"] = utc_to_ist_str(a.get("deadline"))
+    a["resume_upload_ist"] = utc_to_ist_str(a.get("resume_upload_time"))
+
+    # --- Identify active application ---
+    active_app = next(
+        (a for a in applications if a.get("status") in (
+            "submitted", "under_review", "corrections_needed", "upload_required"
+        )),
+        None
+    )
+    has_active = bool(active_app)
+
+    print(f"🟢 [DEBUG] Active Application Found: {bool(active_app)}")
+
+    return render_template(
+        "student_dashboard.html",
+        jobs=jobs,
+        applications=applications,
+        active_app=active_app,
+        has_active=has_active,
+        current_user=current_user,
+        timedelta=timedelta
+    )
 
 class User(UserMixin):
     def __init__(self, data):
@@ -574,6 +724,114 @@ def view_job(job_id):
         has_active=has_active,
         app=existing_app
     )
+# -------------------------
+# Google Drive-based File Viewer
+# -------------------------
+@app.route("/view/<file_type>/<app_id>")
+@login_required
+def view_from_drive(file_type, app_id):
+    """
+    Allows teachers/students to view resumes or photos stored as Google Drive links.
+    Example:
+        /view/resume/<app_id>
+        /view/photo/<app_id>
+    """
+    app_doc = applications_col.find_one({"_id": mongo_objid_from_str(app_id)})
+    if not app_doc:
+        abort(404, "Application not found")
+
+    if file_type == "resume":
+        drive_link = app_doc.get("resume_drive_link")
+        display_name = "Resume"
+    elif file_type == "photo":
+        drive_link = app_doc.get("photo_drive_link")
+        display_name = "Photo"
+    else:
+        abort(400, "Invalid file type")
+
+    if not drive_link:
+        flash(f"⚠️ No {display_name} available for this student.", "warning")
+        return redirect(request.referrer or url_for("teacher_dashboard"))
+
+    # Convert to Google Drive preview link
+    if "view" in drive_link:
+        preview_link = drive_link.replace("view?usp=drive_link", "preview")
+    else:
+        preview_link = drive_link
+
+    return render_template(
+        "view_drive_file.html",
+        preview_link=preview_link,
+        display_name=display_name
+    )
+
+# ---------------------------------------------------------------------
+# 📄 View Resume or Photo (from Drive or Local Upload)
+# ---------------------------------------------------------------------
+@app.route("/view/resume/<app_id>")
+@login_required
+def view_resume(app_id):
+    """
+    View a student's resume — either from Google Drive or local upload.
+    """
+    application = applications_col.find_one({"_id": mongo_objid_from_str(app_id)})
+    if not application:
+        flash("⚠️ Application not found.", "danger")
+        return redirect(request.referrer or url_for("teacher_dashboard"))
+
+    # ✅ Prefer Google Drive link if present
+    drive_link = (
+        application.get("resume_drive_link")
+        or application.get("resume_url")
+        or application.get("resume_link")
+    )
+
+    if drive_link:
+        # Render HTML with iframe to view inline
+        return render_template("view_drive_file.html", drive_url=drive_link, title="View Resume")
+
+    # Fallback: Local upload
+    filename = application.get("resume_filename")
+    if filename:
+        file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        if os.path.exists(file_path):
+            return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+    
+    flash("⚠️ Resume not found for this application.", "warning")
+    return redirect(request.referrer or url_for("teacher_dashboard"))
+
+
+@app.route("/view/photo/<app_id>")
+@login_required
+def view_photo(app_id):
+    """
+    View a student's photo — either from Google Drive or local upload.
+    """
+    application = applications_col.find_one({"_id": mongo_objid_from_str(app_id)})
+    if not application:
+        flash("⚠️ Application not found.", "danger")
+        return redirect(request.referrer or url_for("teacher_dashboard"))
+
+    # ✅ Prefer Google Drive link if present
+    drive_link = (
+        application.get("photo_drive_link")
+        or application.get("photo_url")
+        or application.get("photo_link")
+    )
+
+    if drive_link:
+        return render_template("view_drive_file.html", drive_url=drive_link, title="View Photo")
+
+    # Fallback: Local upload
+    filename = application.get("photo_filename")
+    if filename:
+        file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        if os.path.exists(file_path):
+            return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+    
+    flash("⚠️ Photo not found for this application.", "warning")
+    return redirect(request.referrer or url_for("teacher_dashboard"))
+
 @app.route("/apply/<job_id>", methods=["POST"])
 @login_required
 @student_required
@@ -596,12 +854,13 @@ def apply_job(job_id):
 
     # Prevent multiple active applications
     active_app = applications_col.find_one({
-        "applicant_id": ObjectId(current_user.id),
-        "status": {"$nin": ["rejected", "approved", "cleared", "expired"]}
-    })
+    "applicant_id": ObjectId(current_user.id),
+    "status": {"$nin": ["rejected", "approved", "cleared", "expired"]}
+})
     if active_app:
-        flash("⚠️ You already have an active job application. Please complete or wait for review before applying again.", "warning")
-        return redirect(url_for("student_dashboard"))
+     flash("⚠️ You already have an active application.", "warning")
+     
+     return redirect(url_for("student_dashboard"))
 
     # Prevent duplicate application for the same job
     existing = applications_col.find_one({
@@ -673,7 +932,9 @@ def upload_files(app_id):
         applications_col.update_one({"_id": application["_id"]}, {"$set": {"status": "expired", "last_updated": now}})
         flash("⏰ Deadline expired. Upload not allowed.", "danger")
         return render_template("upload_blocked.html", app=objectid_to_str(application))
-
+    if not resume or not photo:
+     flash("⚠️ Please upload both photo and resume to continue.", "warning")
+     return redirect(request.url)
     # handle POST uploads
     if request.method == "POST":
         # ensure enctype multipart/form-data in template
@@ -763,7 +1024,138 @@ def upload_files(app_id):
         app_for_template["deadline_iso"] = None
     app_for_template["_id_str"] = str(app_for_template["_id"])
 
-    return render_template("upload_files.html", app=app_for_template, deadline_iso=effective_deadline.isoformat())# -------------------------
+    return render_template("upload_files.html", app=app_for_template, deadline_iso=effective_deadline.isoformat())
+
+@app.route("/reupload/<app_id>", methods=["GET", "POST"])
+@login_required
+@student_required
+def reupload_files(app_id):
+    """Allow student to re-upload files after 'corrections_needed'."""
+    app_oid = mongo_objid_from_str(app_id)
+    if not app_oid:
+        flash("Invalid Application ID.", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    app_doc = applications_col.find_one({"_id": app_oid})
+    if not app_doc:
+        flash("Application not found.", "danger")
+        return redirect(url_for("student_dashboard"))
+
+    # ✅ Safely get student (works with multiple possible keys)
+    applicant_id = (
+        app_doc.get("applicant_id")
+        or app_doc.get("student_id")
+        or app_doc.get("user_id")
+    )
+    student = None
+    if applicant_id:
+        try:
+            student = users_col.find_one({"_id": ObjectId(applicant_id)})
+        except Exception:
+            student = users_col.find_one({
+                "$or": [
+                    {"student_id": str(applicant_id)},
+                    {"user_id": str(applicant_id)},
+                    {"_id": str(applicant_id)},
+                ]
+            })
+
+    if not student:
+        flash("⚠️ Student record not found for this application.", "warning")
+        return redirect(url_for("student_dashboard"))
+
+    if request.method == "POST":
+        resume = request.files.get("resume")
+        photo = request.files.get("photo")
+        updates = {}
+
+        if not resume or not photo:
+            flash("⚠️ Both Resume and Photo are required.", "warning")
+            return redirect(request.url)
+
+        resume_path = photo_path = None
+
+        # --- Resume upload ---
+        if resume and allowed_file(resume.filename, ALLOWED_RESUME):
+            ext = resume.filename.rsplit(".", 1)[1].lower()
+            resume_name = secure_filename(f"{app_id}_resume.{ext}")
+            resume_path = os.path.join(app.config["UPLOAD_FOLDER"], resume_name)
+            resume.save(resume_path)
+            updates["resume_filename"] = resume_name
+
+        # --- Photo upload ---
+        if photo and allowed_file(photo.filename, ALLOWED_PHOTO):
+            ext = photo.filename.rsplit(".", 1)[1].lower()
+            photo_name = secure_filename(f"{app_id}_photo.{ext}")
+            photo_path = os.path.join(app.config["UPLOAD_FOLDER"], photo_name)
+            photo.save(photo_path)
+            updates["photo_filename"] = photo_name
+
+        # --- Update database ---
+        updates["status"] = "submitted"
+        updates["last_updated"] = datetime.now(IST)
+        applications_col.update_one({"_id": app_oid}, {"$set": updates})
+
+        # --- Notify Teacher & Student ---
+        job = jobs_col.find_one({"_id": app_doc.get("job_id")})
+        job_title = job.get("title", "Application") if job else "Application"
+        student_email = student.get("email")
+        student_name = student.get("name", "Student")
+        submitted_time = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
+
+        # --- Prepare attachments ---
+        attachments = []
+        if resume_path:
+            att = make_attachment_from_file_path(resume_path)
+            if att: attachments.append(att)
+        if photo_path:
+            att = make_attachment_from_file_path(photo_path)
+            if att: attachments.append(att)
+
+        try:
+            # ✅ Student confirmation email
+            student_html = render_template(
+                "email/student_status_update.html",
+                student_name=student_name,
+                job_title=job_title,
+                status="resubmitted",
+                feedback="Your corrected files have been successfully reuploaded.",
+                now=datetime.now
+            )
+            send_brevo_email(
+                student_email,
+                student_name,
+                f"✅ Files Re-uploaded for {job_title}",
+                student_html
+            )
+
+            # ✅ Teacher notification email
+            teacher_email = os.getenv("TEACHER_INBOX", "psychologyresumemail@gmail.com")
+            teacher_html = render_template(
+                "email/teacher_notification.html",
+                student_name=student_name,
+                job_title=job_title,
+                app_id=app_id,
+                submitted_on=submitted_time
+            )
+            send_brevo_email(
+                teacher_email,
+                "Teacher",
+                f"📥 Updated Files from {student_name} ({job_title})",
+                teacher_html,
+                attachments=attachments
+            )
+
+            flash("✅ Files re-uploaded and notifications sent!", "success")
+        except Exception as e:
+            logger.exception("❌ Email send failed during reupload: %s", e)
+            flash("⚠️ Files uploaded, but email sending failed.", "warning")
+
+        return redirect(url_for("student_dashboard"))
+
+    # GET — render template
+    return render_template("reupload_files.html", app=app_doc)
+# -------------------------
 # View files (resume/photo)
 # -------------------------
 @app.route("/uploads/<filename>")
@@ -782,28 +1174,31 @@ def view_file(filename):
 @login_required
 @teacher_required
 def teacher_dashboard():
-    # Fetch all jobs posted by teacher (or all jobs if global view)
     jobs = list(jobs_col.find().sort("created_at", -1))
 
     for job in jobs:
-        job_id = job["_id"]  # ✅ ObjectId (consistent with applications)
+        job_id = job["_id"]
 
-        # 🔹 Total applications for this job
+        # ✅ Count all applications by type
         job["total_applications"] = applications_col.count_documents({"job_id": job_id})
 
-        # 🔹 Active (not yet approved/rejected)
         job["active_applications"] = applications_col.count_documents({
             "job_id": job_id,
-            "status": {"$in": ["upload_required", "submitted", "corrections_needed"]}
+            "status": {"$in": [
+                "upload_required", "submitted", "under_review", "corrections_needed", "resubmitted"
+            ]}
         })
 
-        # 🔹 Approved
         job["approved_applications"] = applications_col.count_documents({
             "job_id": job_id,
             "status": "approved"
         })
 
-    # Fetch all students (for reference, optional)
+        job["rejected_applications"] = applications_col.count_documents({
+            "job_id": job_id,
+            "status": "rejected"
+        })
+
     students = list(users_col.find({"role": "student"}))
 
     return render_template(
@@ -1103,108 +1498,124 @@ def teacher_growth_hub():
 @login_required
 @teacher_required
 def assess_students_for_job(job_id):
+    """Teacher view to assess and update student job applications."""
     job_oid = mongo_objid_from_str(job_id)
     if not job_oid:
-        if request.is_json:
-            return jsonify({"success": False, "error": "Invalid Job ID"}), 400
         flash("❌ Invalid Job ID.", "danger")
         return redirect(url_for("manage_jobs"))
 
     # -------------------------- POST REQUEST --------------------------
     if request.method == "POST":
-        # Parse input (AJAX or normal form)
-        if request.is_json:
-            data = request.get_json()
-            app_id = data.get("app_id")
-            new_status = data.get("status")
-            feedback = data.get("feedback", "").strip()
-        else:
-            app_id = request.form.get("app_id")
-            new_status = request.form.get("status")
-            feedback = request.form.get("feedback", "").strip()
-
-        # Validate input
-        if not app_id:
-            msg = "❌ Missing application ID."
-            if request.is_json:
-                return jsonify({"success": False, "error": msg}), 400
-            flash(msg, "danger")
-            return redirect(url_for("assess_students_for_job", job_id=job_id))
+        app_id = request.form.get("app_id")
+        new_status = request.form.get("status")
+        feedback = request.form.get("feedback", "").strip()
 
         application = applications_col.find_one({"_id": ObjectId(app_id)})
         if not application:
-            msg = "⚠️ Application not found."
-            if request.is_json:
-                return jsonify({"success": False, "error": msg}), 404
-            flash(msg, "danger")
+            flash("⚠️ Application not found.", "danger")
             return redirect(url_for("assess_students_for_job", job_id=job_id))
 
         previous_status = application.get("status")
-
-        # Update application
         applications_col.update_one(
             {"_id": ObjectId(app_id)},
             {"$set": {
                 "status": new_status,
                 "teacher_feedback": feedback,
-                "last_updated": datetime.now(tz=tz(timedelta(hours=5, minutes=30)))
+                "last_updated": datetime.now(IST)
             }}
         )
 
-        # -------------------------- VACANCY LOGIC --------------------------
+        # ---------------- Vacancy Management ----------------
         job = jobs_col.find_one({"_id": application.get("job_id")})
         if job:
             vacancies = job.get("vacancies", 0)
-
-            # Only change vacancy if the status actually changes
-            if previous_status != new_status:
-                # Rejected → +1 (only if wasn't already rejected/cleared)
-                if new_status == "rejected" and previous_status not in ["rejected", "cleared"]:
-                    vacancies += 1
-
-                # Reinstating from rejected → -1 (if going to active state)
-                elif previous_status == "rejected" and new_status not in ["rejected", "cleared"]:
-                    vacancies = max(0, vacancies - 1)
-
-                # Newly submitted → -1
-                elif new_status == "submitted" and previous_status not in ["submitted"]:
-                    vacancies = max(0, vacancies - 1)
-
+            if new_status == "rejected" and previous_status != "rejected":
+                vacancies += 1
+            elif new_status == "submitted" and previous_status != "submitted":
+                vacancies = max(0, vacancies - 1)
             jobs_col.update_one({"_id": job["_id"]}, {"$set": {"vacancies": vacancies}})
-            logger.info(f"Vacancy updated for '{job.get('title')}': {previous_status} → {new_status}, now {vacancies}")
 
-        # -------------------------- EMAIL NOTIFICATION --------------------------
-        student = users_col.find_one({"_id": application.get("applicant_id")})
-        if student:
-            try:
+        # ---------------- Email Notification ----------------
+        try:
+            # 🔍 Robust student lookup (works for both ObjectId & string IDs)
+            student = None
+            applicant_ref = (
+                application.get("applicant_id")
+                or application.get("student_id")
+                or application.get("user_id")
+            )
+
+            if applicant_ref:
+                try:
+                    student = users_col.find_one({"_id": ObjectId(applicant_ref)})
+                except Exception:
+                    pass
+
+                if not student:
+                    student = users_col.find_one({
+                        "$or": [
+                            {"_id": applicant_ref},
+                            {"student_id": str(applicant_ref)},
+                            {"user_id": str(applicant_ref)},
+                            {"email": str(applicant_ref)}
+                        ]
+                    })
+
+            if student:
                 student_name = student.get("name", "Student")
                 student_email = student.get("email")
                 job_title = job.get("title", "Application") if job else "Application"
 
+                # ✅ Add attachments if local files exist
+                attachments = []
+                resume_fn = application.get("resume_filename")
+                photo_fn = application.get("photo_filename")
+
+                if resume_fn:
+                    resume_path = os.path.join(app.config["UPLOAD_FOLDER"], resume_fn)
+                    att = make_attachment_from_file_path(resume_path)
+                    if att:
+                        attachments.append(att)
+
+                if photo_fn:
+                    photo_path = os.path.join(app.config["UPLOAD_FOLDER"], photo_fn)
+                    att = make_attachment_from_file_path(photo_path)
+                    if att:
+                        attachments.append(att)
+
+                # Render email HTML
                 status_html = render_template(
                     "email/student_status_update.html",
                     student_name=student_name,
                     job_title=job_title,
                     status=new_status,
                     feedback=feedback,
-                    now=datetime.now
+                    now=datetime.now  # used in template
                 )
-                send_brevo_email(
+
+                print(f"📧 Preparing status update mail for {student_email} ({new_status})")
+
+                ok = send_brevo_email(
                     student_email,
                     student_name,
                     f"📢 Update on your application for {job_title}",
-                    status_html
+                    status_html,
+                    attachments=attachments if attachments else None,
+                    async_send=True
                 )
-                logger.info(f"Email sent to {student_email} ({job_title})")
-            except Exception as e:
-                logger.exception("Email sending failed: %s", e)
 
-        # -------------------------- RESPONSE HANDLING --------------------------
-        if request.is_json:
-            return jsonify({"success": True, "new_status": new_status})
-        else:
-            flash("✅ Application updated and student notified!", "success")
-            return redirect(url_for("assess_students_for_job", job_id=job_id))
+                print(f"✅ Email trigger result ({new_status}):", ok)
+                logger.info("✅ Email trigger result (%s): %s", new_status, ok)
+
+            else:
+                print(f"⚠️ Student not found for app_id={app_id} → applicant_ref={applicant_ref}")
+
+        except Exception as e:
+            print(f"❌ Exception while sending Brevo email: {e}")
+            logger.exception("❌ Email send failed: %s", e)
+
+        flash("✅ Application updated successfully.", "success")
+        return redirect(url_for("assess_students_for_job", job_id=job_id))
 
     # -------------------------- GET REQUEST --------------------------
     job = jobs_col.find_one({"_id": job_oid})
@@ -1212,15 +1623,110 @@ def assess_students_for_job(job_id):
         flash("⚠️ Job not found.", "danger")
         return redirect(url_for("manage_jobs"))
 
+    # Load all applications for this job
     applications = list(applications_col.find({"job_id": job_oid}).sort("application_time", -1))
-    for app in applications:
-        student = users_col.find_one({"_id": app.get("applicant_id")})
-        app["student_name"] = student.get("name", "Unknown") if student else "Unknown"
-        app["student_email"] = student.get("email", "N/A") if student else "N/A"
-        app["job_title"] = job.get("title", "Unknown")
-        app["app_id_str"] = str(app["_id"])
+
+    for application_entry in applications:
+        applicant_id = application_entry.get("applicant_id") or application_entry.get("user_id")
+
+        student = None
+        if applicant_id:
+            try:
+                student = users_col.find_one({"_id": ObjectId(applicant_id)})
+            except Exception:
+                student = users_col.find_one({
+                    "$or": [
+                        {"student_id": str(applicant_id)},
+                        {"user_id": str(applicant_id)}
+                    ]
+                })
+
+        application_entry["student_name"] = student.get("name", "Unknown") if student else "Unknown"
+        application_entry["student_email"] = student.get("email", "N/A") if student else "N/A"
+        application_entry["job_title"] = job.get("title", "Unknown")
+        application_entry["app_id_str"] = str(application_entry["_id"])
+
+        # Add drive link fallbacks
+        application_entry["photo_drive_link"] = (
+            application_entry.get("photo_drive_link")
+            or application_entry.get("photo_url")
+            or application_entry.get("photo_link")
+        )
+        application_entry["resume_drive_link"] = (
+            application_entry.get("resume_drive_link")
+            or application_entry.get("resume_url")
+            or application_entry.get("resume_link")
+        )
 
     return render_template("assess_students.html", applications=applications, job=job)
+
+from flask import Response, send_file
+from bson import ObjectId
+import mimetypes
+import os
+
+@app.route("/get_file/<file_id>")
+@login_required
+def get_file(file_id):
+    """
+    Serve files inline (not downloaded).
+    Supports both GridFS (database) and fallback to local uploads.
+    """
+    try:
+        # Try fetching from GridFS first
+        file = fs.get(ObjectId(file_id))
+        content_type = file.content_type or "application/octet-stream"
+        filename = file.filename
+        data = file.read()
+
+        # Force inline viewing
+        response = Response(data, mimetype=content_type)
+        response.headers["Content-Disposition"] = f"inline; filename={filename}"
+        return response
+
+    except Exception:
+        # If not found in GridFS, try from local /uploads folder
+        file_path = os.path.join(app.config["UPLOAD_FOLDER"], file_id)
+        if os.path.exists(file_path):
+            # Guess MIME type (pdf, image, etc)
+            mime_type, _ = mimetypes.guess_type(file_path)
+            mime_type = mime_type or "application/octet-stream"
+            return send_file(file_path, mimetype=mime_type, as_attachment=False)
+        abort(404)
+
+@app.route("/view_drive_file/<app_id>/<file_type>")
+@login_required
+def view_drive_file(app_id, file_type):
+    """
+    Allows teachers or students to view a file directly from Google Drive.
+    file_type: 'photo' or 'resume'
+    """
+    app_doc = applications_col.find_one({"_id": ObjectId(app_id)})
+    if not app_doc:
+        flash("⚠️ Application not found.", "danger")
+        return redirect(url_for("teacher_dashboard"))
+
+    # Match correct field
+    drive_link = None
+    if file_type == "photo":
+        drive_link = (
+            app_doc.get("photo_drive_link")
+            or app_doc.get("photo_url")
+            or app_doc.get("photo_link")
+        )
+    elif file_type == "resume":
+        drive_link = (
+            app_doc.get("resume_drive_link")
+            or app_doc.get("resume_url")
+            or app_doc.get("resume_link")
+        )
+
+    if not drive_link:
+        flash("⚠️ File not available.", "warning")
+        return redirect(url_for("assess_students_for_job", job_id=str(app_doc.get("job_id"))))
+
+    # Redirect directly to the Drive view link
+    return redirect(drive_link)
 
 @app.route("/teacher/clear_applications", methods=["GET", "POST"])
 @login_required
@@ -1415,7 +1921,7 @@ def registered_students():
 @login_required
 @teacher_required
 def export_assessed_students():
-    cursor = applications_col.find({"status": {"$in": ["approved", "rejected", "corrections_needed"]}})
+    cursor = applications_col.find({"status": {"$in": ["approved", "rejected", "corrections_needed", "resubmitted"]}})
     rows = []
     for a in cursor:
         applicant = users_col.find_one({"_id": a.get("applicant_id")})

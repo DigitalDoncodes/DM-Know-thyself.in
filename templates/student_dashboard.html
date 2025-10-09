@@ -2,149 +2,189 @@
 {% block title %}Student Dashboard | Know-Thyself{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold text-primary">👨‍🎓 Student Dashboard</h2>
-    <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary">
-      <i class="fas fa-sign-out-alt"></i> Logout
-    </a>
+<div class="container mt-5">
+  <h2 class="fw-bold text-primary text-center mb-4">
+    <i class="fas fa-user-graduate"></i> Student Dashboard
+  </h2>
+
+  <!-- ✅ Active Application Section -->
+  {% if has_active and active_app %}
+  <div class="card shadow-lg border-0 mb-4">
+    <div class="card-body">
+      <h5 class="card-title text-primary fw-bold">
+        <i class="fas fa-briefcase"></i> Active Application
+      </h5>
+      <hr>
+
+      <div class="row align-items-center">
+        <div class="col-md-8">
+          <p><strong>Job Title:</strong> {{ active_app.job_title }}</p>
+          <p><strong>Status:</strong> 
+            <span class="badge 
+              {% if active_app.status == 'submitted' %}bg-info
+              {% elif active_app.status == 'under_review' %}bg-primary
+              {% elif active_app.status == 'corrections_needed' %}bg-warning text-dark
+              {% elif active_app.status == 'resubmitted' %}bg-indigo text-white
+              {% elif active_app.status == 'approved' %}bg-success
+              {% elif active_app.status == 'rejected' %}bg-danger
+              {% else %}bg-secondary{% endif %}">
+              {{ active_app.status|replace('_', ' ')|capitalize }}
+            </span>
+          </p>
+
+          {% set deadline_time = active_app.deadline if active_app.deadline else active_app.application_time + timedelta(hours=48) %}
+          <p><strong>Deadline:</strong> {{ deadline_time.strftime('%d %b %Y, %I:%M %p') if deadline_time else 'N/A' }}</p>
+        </div>
+
+        <div class="col-md-4 text-end">
+          {% if active_app.status == 'corrections_needed' %}
+            <a href="{{ url_for('reupload_files', app_id=active_app._id) }}" class="btn btn-warning btn-sm">
+              <i class="fas fa-upload"></i> Reupload Files
+            </a>
+          {% elif active_app.status in ['submitted', 'under_review', 'resubmitted'] %}
+            <span class="text-muted small fst-italic">Awaiting teacher review...</span>
+          {% elif active_app.status in ['approved', 'rejected'] %}
+            <span class="text-success fw-bold">✅ Process Complete</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ✅ Amazon-style Progress Tracker -->
+      <div class="track mt-4">
+        <div class="step {% if active_app.status in ['submitted', 'under_review', 'corrections_needed', 'resubmitted', 'approved', 'rejected'] %}active{% endif %}">
+          <span class="icon"><i class="fas fa-file-upload"></i></span>
+          <span class="text">Submitted</span>
+        </div>
+        <div class="step {% if active_app.status in ['under_review', 'corrections_needed', 'resubmitted', 'approved', 'rejected'] %}active{% endif %}">
+          <span class="icon"><i class="fas fa-search"></i></span>
+          <span class="text">Under Review</span>
+        </div>
+        <div class="step {% if active_app.status in ['corrections_needed', 'resubmitted', 'approved', 'rejected'] %}active{% endif %} {% if active_app.status == 'corrections_needed' %}warning{% endif %}">
+          <span class="icon"><i class="fas fa-edit"></i></span>
+          <span class="text">Corrections</span>
+        </div>
+        <div class="step {% if active_app.status in ['resubmitted', 'approved', 'rejected'] %}active{% endif %}">
+          <span class="icon"><i class="fas fa-sync-alt"></i></span>
+          <span class="text">Resubmitted</span>
+        </div>
+        <div class="step {% if active_app.status in ['approved', 'rejected'] %}active{% endif %} {% if active_app.status == 'approved' %}success{% elif active_app.status == 'rejected' %}danger{% endif %}">
+          <span class="icon">
+            {% if active_app.status == 'approved' %}
+              <i class="fas fa-check-circle"></i>
+            {% elif active_app.status == 'rejected' %}
+              <i class="fas fa-times-circle"></i>
+            {% else %}
+              <i class="fas fa-hourglass-half"></i>
+            {% endif %}
+          </span>
+          <span class="text">Final Decision</span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- Active Application -->
-  {% if active_app %}
-  <div class="alert alert-info rounded-4 shadow-sm">
-    <h5 class="fw-bold"><i class="fas fa-file-alt"></i> Active Application</h5>
-    <p><strong>Job:</strong> {{ active_app.job_title }}</p>
-    <p><strong>Status:</strong> {{ active_app.status|capitalize }}</p>
-
-    <div class="progress" style="height: 12px;">
-      {% set stages = ["upload_required", "submitted", "corrections_needed", "approved", "rejected"] %}
-      {% for stage in stages %}
-        <div class="progress-bar {% if stages.index(stage) <= stages.index(active_app.status) %}bg-success{% else %}bg-light{% endif %}" style="width: 20%;"></div>
-      {% endfor %}
-    </div>
-
-    {% if active_app.status in ["upload_required", "corrections_needed"] %}
-      <a href="{{ url_for('upload_files', app_id=active_app._id|string) }}" class="btn btn-outline-primary mt-3">
-        <i class="fas fa-upload"></i> Upload / Reupload Files
-      </a>
-    {% endif %}
-
-    {% set deadline_time = (active_app.deadline if active_app.deadline else active_app.application_time + timedelta(hours=48)) %}
-    {% set deadline_ist = (deadline_time + timedelta(hours=5, minutes=30)) %}
-
-    {% if active_app.status not in ["submitted", "expired"] %}
-      <p class="mt-3"><strong>⏰ Time Left:</strong>
-        <span id="countdown" data-deadline="{{ deadline_ist.strftime('%Y-%m-%dT%H:%M:%S') }}"></span>
-      </p>
-    {% elif active_app.status == "submitted" %}
-      <p class="text-success fw-bold mt-3">✅ Upload complete. Timer stopped.</p>
-    {% else %}
-      <p class="text-danger fw-bold mt-3">⏰ Time expired.</p>
-    {% endif %}
+  {% else %}
+  <!-- ✅ No active application -->
+  <div class="alert alert-info text-center shadow-sm">
+    <i class="fas fa-info-circle"></i> You have no active applications.
+    <br>
+    <small>Apply to a job below to get started.</small>
   </div>
   {% endif %}
 
-  <!-- Available Jobs -->
-  <div class="card shadow-lg border-0 rounded-4 mt-4">
-    <div class="card-body">
-      <h5 class="fw-bold text-secondary mb-3">
-        <i class="fas fa-briefcase"></i> Available Jobs
-      </h5>
-
-      {% if jobs %}
-      <div class="row">
-        {% for job in jobs %}
-        <div class="col-md-6 col-lg-4 mb-4">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body d-flex flex-column">
-              <h5 class="card-title fw-semibold text-primary">{{ job.title }}</h5>
-              <p class="card-text small text-muted">{{ job.description[:120] }}...</p>
-              <p><strong>Vacancies:</strong> {{ job.vacancies }}</p>
-              <p><strong>Deadline:</strong>
-                {% if job.deadline %}
-                  {{ (job.deadline + timedelta(hours=5, minutes=30)) | string | replace("T", " ") | truncate(16, True, '') }} IST
-                {% else %}
-                  Not set
-                {% endif %}
-              </p>
-
-              <div class="mt-auto d-flex justify-content-between">
-                <a href="{{ url_for('view_job', job_id=job._id|string) }}" class="btn btn-outline-info btn-sm">
-                  <i class="fas fa-eye"></i> View
-                </a>
-
-                {% if not has_active %}
-                <button type="button" class="btn btn-primary btn-sm" onclick="confirmApply('{{ url_for('apply_job', job_id=job._id|string) }}')">
-                  <i class="fas fa-paper-plane"></i> Apply
-                </button>
-                {% endif %}
-              </div>
-            </div>
-          </div>
+  <!-- ✅ Job Listings -->
+  <h4 class="fw-bold mt-5 mb-3 text-primary"><i class="fas fa-list"></i> Available Jobs</h4>
+  <div class="row">
+    {% for job in jobs %}
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <h5 class="fw-bold text-primary">{{ job.title }}</h5>
+          <p class="text-muted small">{{ job.description }}</p>
+          <p><strong>Vacancies:</strong> {{ job.vacancies }}</p>
+          <p><strong>Deadline:</strong> {{ job.deadline_str or 'Not specified' }}</p>
         </div>
-        {% endfor %}
+        <div class="card-footer bg-light border-0 text-end">
+          {% if has_active %}
+            <button class="btn btn-secondary btn-sm" disabled>
+              <i class="fas fa-lock"></i> Already Applied
+            </button>
+          {% else %}
+            <form action="{{ url_for('apply_job', job_id=job._id) }}" method="POST" onsubmit="return confirmApply(event)">
+              <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-paper-plane"></i> Apply
+              </button>
+            </form>
+          {% endif %}
+        </div>
       </div>
-      {% else %}
-      <p class="text-muted text-center mt-3">No jobs available right now.</p>
-      {% endif %}
     </div>
+    {% endfor %}
   </div>
 </div>
 
-<!-- Apply Confirmation Modal -->
-<div class="modal fade" id="applyModal" tabindex="-1" aria-labelledby="applyModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content rounded-4 shadow">
-      <div class="modal-header bg-primary text-white rounded-top-4">
-        <h5 class="modal-title fw-bold"><i class="fas fa-paper-plane"></i> Confirm Application</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        Are you sure you want to apply for this job? Once applied, you cannot apply for another until reviewed.
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <form id="applyForm" method="POST">
-          <button type="submit" class="btn btn-primary">Confirm</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-// Confirmation modal for Apply
-function confirmApply(url) {
-  const modal = new bootstrap.Modal(document.getElementById('applyModal'));
-  document.getElementById('applyForm').action = url;
-  modal.show();
+<!-- ✅ Amazon tracking-style CSS -->
+<style>
+.track {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  position: relative;
 }
+.track::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: #d4d4d4;
+  z-index: 1;
+  border-radius: 4px;
+}
+.step {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  width: 20%;
+}
+.step .icon {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  background: #d4d4d4;
+  border-radius: 50%;
+  line-height: 40px;
+  color: white;
+}
+.step.active .icon {
+  background: #2563eb;
+}
+.step.warning .icon {
+  background: #facc15;
+  color: #000;
+}
+.step.success .icon {
+  background: #16a34a;
+}
+.step.danger .icon {
+  background: #dc2626;
+}
+.step .text {
+  margin-top: 8px;
+  font-size: 13px;
+  display: block;
+}
+</style>
 
-// Countdown timer
-const countdownElem = document.getElementById("countdown");
-if (countdownElem) {
-  const deadline = new Date(countdownElem.dataset.deadline).getTime();
-
-  function updateCountdown() {
-    const now = new Date().getTime();
-    const distance = deadline - now;
-
-    if (distance < 0) {
-      countdownElem.innerHTML = "Expired";
-      countdownElem.classList.add("text-danger");
-      return;
-    }
-
-    const hours = Math.floor((distance / (1000 * 60 * 60)) % 48);
-    const minutes = Math.floor((distance / (1000 * 60)) % 60);
-    const seconds = Math.floor((distance / 1000) % 60);
-
-    countdownElem.innerHTML = `${hours.toString().padStart(2, '0')}h : ${minutes.toString().padStart(2, '0')}m : ${seconds.toString().padStart(2, '0')}s`;
+<!-- ✅ JS Confirmation -->
+<script>
+function confirmApply(event) {
+  if (!confirm("Are you sure you want to apply for this job? You cannot apply for others until it’s processed.")) {
+    event.preventDefault();
+    return false;
   }
-
-  updateCountdown();
-  setInterval(updateCountdown, 1000);
+  return true;
 }
 </script>
 {% endblock %}
