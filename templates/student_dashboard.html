@@ -32,13 +32,34 @@
             </span>
           </p>
 
-          {% set deadline_time = active_app.deadline if active_app.deadline else active_app.application_time + timedelta(hours=48) %}
-          <p><strong>Deadline:</strong> {{ deadline_time.strftime('%d %b %Y, %I:%M %p') if deadline_time else 'N/A' }}</p>
+          {% if active_app.status == 'corrections_needed' %}
+            {% set re_deadline = active_app.reupload_deadline
+                                  if active_app.reupload_deadline
+                                  else (active_app.corrections_set_at + timedelta(hours=24)) %}
+            <p class="mb-1"><strong>Reupload window:</strong> 24 hours from teacher’s request</p>
+            <p class="mb-1"><strong>Deadline:</strong>
+              {{ re_deadline.strftime('%d %b %Y, %I:%M %p') }}
+            </p>
+            <p class="mb-0">
+              <strong>Time left:</strong>
+              <span id="reupload-countdown"
+                    data-deadline="{{ re_deadline.isoformat() }}"
+                    data-now="{{ now_utc.isoformat() }}">--:--:--</span>
+            </p>
+          {% else %}
+            {% set deadline_time = active_app.deadline
+                if active_app.deadline
+                else active_app.application_time + timedelta(hours=48) %}
+            <p><strong>Deadline:</strong> {{ deadline_time.strftime('%d %b %Y, %I:%M %p') if deadline_time else 'N/A' }}</p>
+          {% endif %}
         </div>
 
         <div class="col-md-4 text-end">
           {% if active_app.status == 'corrections_needed' %}
-            <a href="{{ url_for('reupload_files', app_id=active_app._id) }}" class="btn btn-warning btn-sm">
+            <a id="reupload-btn"
+               data-app-id="{{ active_app._id }}"
+               href="{{ url_for('reupload_files', app_id=active_app._id) }}"
+               class="btn btn-warning btn-sm">
               <i class="fas fa-upload"></i> Reupload Files
             </a>
           {% elif active_app.status in ['submitted', 'under_review', 'resubmitted'] %}
@@ -123,61 +144,20 @@
   </div>
 </div>
 
-<!-- ✅ Amazon tracking-style CSS -->
+<!-- ✅ Amazon tracking-style CSS (unchanged) -->
 <style>
-.track {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 40px;
-  position: relative;
-}
-.track::before {
-  content: '';
-  position: absolute;
-  top: 18px;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: #d4d4d4;
-  z-index: 1;
-  border-radius: 4px;
-}
-.step {
-  position: relative;
-  z-index: 2;
-  text-align: center;
-  width: 20%;
-}
-.step .icon {
-  display: inline-block;
-  width: 40px;
-  height: 40px;
-  background: #d4d4d4;
-  border-radius: 50%;
-  line-height: 40px;
-  color: white;
-}
-.step.active .icon {
-  background: #2563eb;
-}
-.step.warning .icon {
-  background: #facc15;
-  color: #000;
-}
-.step.success .icon {
-  background: #16a34a;
-}
-.step.danger .icon {
-  background: #dc2626;
-}
-.step .text {
-  margin-top: 8px;
-  font-size: 13px;
-  display: block;
-}
+.track { display:flex; justify-content:space-between; margin-top:40px; position:relative; }
+.track::before { content:''; position:absolute; top:18px; left:0; width:100%; height:4px; background:#d4d4d4; z-index:1; border-radius:4px; }
+.step { position:relative; z-index:2; text-align:center; width:20%; }
+.step .icon { display:inline-block; width:40px; height:40px; background:#d4d4d4; border-radius:50%; line-height:40px; color:#fff; }
+.step.active .icon { background:#2563eb; }
+.step.warning .icon { background:#facc15; color:#000; }
+.step.success .icon { background:#16a34a; }
+.step.danger .icon { background:#dc2626; }
+.step .text { margin-top:8px; font-size:13px; display:block; }
 </style>
 
-<!-- ✅ JS Confirmation -->
+<!-- ✅ JS: apply confirm (existing) -->
 <script>
 function confirmApply(event) {
   if (!confirm("Are you sure you want to apply for this job? You cannot apply for others until it’s processed.")) {
@@ -186,5 +166,61 @@ function confirmApply(event) {
   }
   return true;
 }
+</script>
+
+<!-- ✅ JS: 24h countdown + disable button + instant 'Time up' banner -->
+<script>
+(function () {
+  const el = document.getElementById("reupload-countdown");
+  if (!el) return;
+
+  // Parse server-sent times (prevents cheating via client clock changes)
+  const deadline = new Date(el.dataset.deadline);
+  const serverNow = new Date(el.dataset.now);
+  const clientNow = new Date();
+  const offsetMs = clientNow - serverNow; // client - server
+
+  const btn = document.getElementById("reupload-btn");
+
+  function fmt(ms) {
+    if (ms <= 0) return "00:00:00";
+    const totalSec = Math.floor(ms / 1000);
+    const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
+    const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+    const s = String(totalSec % 60).padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  }
+
+  function showTimeUp() {
+    if (btn) {
+      btn.classList.remove("btn-warning");
+      btn.classList.add("btn-secondary");
+      btn.setAttribute("aria-disabled", "true");
+      btn.style.pointerEvents = "none";
+      btn.textContent = "Time up";
+    }
+    const alert = document.createElement("div");
+    alert.className = "alert alert-danger mt-3";
+    alert.innerHTML = "<strong>Time up</strong> — the 24-hour window to reupload has expired.";
+    const body = el.closest(".card-body");
+    if (body) body.insertBefore(alert, body.firstChild);
+  }
+
+  function tick() {
+    const now = new Date(Date.now() - offsetMs);
+    const remaining = deadline - now;
+
+    if (remaining <= 0) {
+      el.textContent = "00:00:00";
+      showTimeUp();
+      return; // stop
+    }
+
+    el.textContent = fmt(remaining);
+    requestAnimationFrame(tick);
+  }
+
+  tick();
+})();
 </script>
 {% endblock %}
