@@ -7,7 +7,7 @@
     <i class="fas fa-user-graduate"></i> Student Dashboard
   </h2>
 
-  <!-- ✅ Active Application Section -->
+  <!-- ================= ACTIVE APPLICATION ================= -->
   {% if has_active and active_app %}
   <div class="card shadow-lg border-0 mb-4">
     <div class="card-body">
@@ -19,8 +19,10 @@
       <div class="row align-items-center">
         <div class="col-md-8">
           <p><strong>Job Title:</strong> {{ active_app.job_title }}</p>
-          <p><strong>Status:</strong> 
-            <span class="badge 
+
+          <p>
+            <strong>Status:</strong>
+            <span class="badge
               {% if active_app.status == 'submitted' %}bg-info
               {% elif active_app.status == 'under_review' %}bg-primary
               {% elif active_app.status == 'corrections_needed' %}bg-warning text-dark
@@ -28,15 +30,17 @@
               {% elif active_app.status == 'approved' %}bg-success
               {% elif active_app.status == 'rejected' %}bg-danger
               {% else %}bg-secondary{% endif %}">
-              {{ active_app.status|replace('_', ' ')|capitalize }}
+              {{ active_app.status|replace('_',' ')|capitalize }}
             </span>
           </p>
 
           {% if active_app.status == 'corrections_needed' %}
-            {% set re_deadline = active_app.reupload_deadline
-                                  if active_app.reupload_deadline
-                                  else (active_app.corrections_set_at + timedelta(hours=24)) %}
-            <p class="mb-1"><strong>Reupload window:</strong> 24 hours from teacher’s request</p>
+            {% set re_deadline =
+              active_app.reupload_deadline
+              if active_app.reupload_deadline
+              else (active_app.corrections_set_at + timedelta(hours=24))
+            %}
+            <p class="mb-1"><strong>Reupload window:</strong> 24 hours</p>
             <p class="mb-1"><strong>Deadline:</strong>
               {{ re_deadline.strftime('%d %b %Y, %I:%M %p') }}
             </p>
@@ -44,51 +48,58 @@
               <strong>Time left:</strong>
               <span id="reupload-countdown"
                     data-deadline="{{ re_deadline.isoformat() }}"
-                    data-now="{{ now_utc.isoformat() }}">--:--:--</span>
+                    data-now="{{ now_utc.isoformat() }}">
+                --:--:--
+              </span>
             </p>
           {% else %}
-            {% set deadline_time = active_app.deadline
-                if active_app.deadline
-                else active_app.application_time + timedelta(hours=48) %}
-            <p><strong>Deadline:</strong> {{ deadline_time.strftime('%d %b %Y, %I:%M %p') if deadline_time else 'N/A' }}</p>
+            {% set deadline_time =
+              active_app.deadline
+              if active_app.deadline
+              else active_app.application_time + timedelta(hours=48)
+            %}
+            <p>
+              <strong>Deadline:</strong>
+              {{ deadline_time.strftime('%d %b %Y, %I:%M %p') if deadline_time else 'N/A' }}
+            </p>
           {% endif %}
         </div>
 
         <div class="col-md-4 text-end">
           {% if active_app.status == 'corrections_needed' %}
             <a id="reupload-btn"
-               data-app-id="{{ active_app._id }}"
-               href="{{ url_for('reupload_files', app_id=active_app._id) }}"
+               href="{{ url_for('reupload_files', app_id=active_app._id|string) }}"
                class="btn btn-warning btn-sm">
               <i class="fas fa-upload"></i> Reupload Files
             </a>
-          {% elif active_app.status in ['submitted', 'under_review', 'resubmitted'] %}
-            <span class="text-muted small fst-italic">Awaiting teacher review...</span>
-          {% elif active_app.status in ['approved', 'rejected'] %}
+          {% elif active_app.status in ['submitted','under_review','resubmitted'] %}
+            <span class="text-muted small fst-italic">Awaiting teacher review…</span>
+          {% else %}
             <span class="text-success fw-bold">✅ Process Complete</span>
           {% endif %}
         </div>
       </div>
 
-      <!-- ✅ Amazon-style Progress Tracker -->
+      <!-- ================= PROGRESS TRACKER ================= -->
       <div class="track mt-4">
-        <div class="step {% if active_app.status in ['submitted', 'under_review', 'corrections_needed', 'resubmitted', 'approved', 'rejected'] %}active{% endif %}">
+        <div class="step active">
           <span class="icon"><i class="fas fa-file-upload"></i></span>
           <span class="text">Submitted</span>
         </div>
-        <div class="step {% if active_app.status in ['under_review', 'corrections_needed', 'resubmitted', 'approved', 'rejected'] %}active{% endif %}">
+        <div class="step {% if active_app.status != 'submitted' %}active{% endif %}">
           <span class="icon"><i class="fas fa-search"></i></span>
           <span class="text">Under Review</span>
         </div>
-        <div class="step {% if active_app.status in ['corrections_needed', 'resubmitted', 'approved', 'rejected'] %}active{% endif %} {% if active_app.status == 'corrections_needed' %}warning{% endif %}">
+        <div class="step {% if active_app.status in ['corrections_needed','resubmitted','approved','rejected'] %}active{% endif %}">
           <span class="icon"><i class="fas fa-edit"></i></span>
           <span class="text">Corrections</span>
         </div>
-        <div class="step {% if active_app.status in ['resubmitted', 'approved', 'rejected'] %}active{% endif %}">
+        <div class="step {% if active_app.status in ['resubmitted','approved','rejected'] %}active{% endif %}">
           <span class="icon"><i class="fas fa-sync-alt"></i></span>
           <span class="text">Resubmitted</span>
         </div>
-        <div class="step {% if active_app.status in ['approved', 'rejected'] %}active{% endif %} {% if active_app.status == 'approved' %}success{% elif active_app.status == 'rejected' %}danger{% endif %}">
+        <div class="step {% if active_app.status in ['approved','rejected'] %}active{% endif %}
+             {% if active_app.status == 'approved' %}success{% elif active_app.status == 'rejected' %}danger{% endif %}">
           <span class="icon">
             {% if active_app.status == 'approved' %}
               <i class="fas fa-check-circle"></i>
@@ -103,18 +114,21 @@
       </div>
     </div>
   </div>
-
   {% else %}
-  <!-- ✅ No active application -->
+  <!-- ================= NO ACTIVE APPLICATION ================= -->
   <div class="alert alert-info text-center shadow-sm">
-    <i class="fas fa-info-circle"></i> You have no active applications.
+    <i class="fas fa-info-circle"></i>
+    You have no active applications.
     <br>
     <small>Apply to a job below to get started.</small>
   </div>
   {% endif %}
 
-  <!-- ✅ Job Listings -->
-  <h4 class="fw-bold mt-5 mb-3 text-primary"><i class="fas fa-list"></i> Available Jobs</h4>
+  <!-- ================= JOB LISTINGS ================= -->
+  <h4 class="fw-bold mt-5 mb-3 text-primary">
+    <i class="fas fa-list"></i> Available Jobs
+  </h4>
+
   <div class="row">
     {% for job in jobs %}
     <div class="col-md-4 mb-4">
@@ -131,8 +145,10 @@
               <i class="fas fa-lock"></i> Already Applied
             </button>
           {% else %}
-            <form action="{{ url_for('apply_job', job_id=job._id) }}" method="POST" onsubmit="return confirmApply(event)">
-              <button type="submit" class="btn btn-primary btn-sm">
+            <form method="POST"
+                  action="{{ url_for('apply_job', job_id=job._id) }}"
+                  onsubmit="return confirmApply(event)">
+              <button class="btn btn-primary btn-sm">
                 <i class="fas fa-paper-plane"></i> Apply
               </button>
             </form>
@@ -144,83 +160,54 @@
   </div>
 </div>
 
-<!-- ✅ Amazon tracking-style CSS (unchanged) -->
+<!-- ================= STYLES ================= -->
 <style>
-.track { display:flex; justify-content:space-between; margin-top:40px; position:relative; }
-.track::before { content:''; position:absolute; top:18px; left:0; width:100%; height:4px; background:#d4d4d4; z-index:1; border-radius:4px; }
-.step { position:relative; z-index:2; text-align:center; width:20%; }
-.step .icon { display:inline-block; width:40px; height:40px; background:#d4d4d4; border-radius:50%; line-height:40px; color:#fff; }
-.step.active .icon { background:#2563eb; }
-.step.warning .icon { background:#facc15; color:#000; }
-.step.success .icon { background:#16a34a; }
-.step.danger .icon { background:#dc2626; }
-.step .text { margin-top:8px; font-size:13px; display:block; }
+.track{display:flex;justify-content:space-between;position:relative;margin-top:40px}
+.track::before{content:'';position:absolute;top:18px;left:0;width:100%;height:4px;background:#d4d4d4;border-radius:4px}
+.step{text-align:center;width:20%;z-index:2}
+.step .icon{width:40px;height:40px;border-radius:50%;line-height:40px;background:#d4d4d4;color:#fff;display:inline-block}
+.step.active .icon{background:#2563eb}
+.step.success .icon{background:#16a34a}
+.step.danger .icon{background:#dc2626}
+.step .text{margin-top:6px;font-size:13px}
 </style>
 
-<!-- ✅ JS: apply confirm (existing) -->
 <script>
-function confirmApply(event) {
-  if (!confirm("Are you sure you want to apply for this job? You cannot apply for others until it’s processed.")) {
-    event.preventDefault();
-    return false;
+function confirmApply(e){
+  if(!confirm("Are you sure you want to apply?")){
+    e.preventDefault(); return false;
   }
   return true;
 }
 </script>
 
-<!-- ✅ JS: 24h countdown + disable button + instant 'Time up' banner -->
+{% if has_active and active_app and active_app.status == 'corrections_needed' %}
 <script>
-(function () {
-  const el = document.getElementById("reupload-countdown");
-  if (!el) return;
+(function(){
+  const el=document.getElementById("reupload-countdown");
+  if(!el) return;
+  const deadline=new Date(el.dataset.deadline);
+  const serverNow=new Date(el.dataset.now);
+  const offset=Date.now()-serverNow;
+  const btn=document.getElementById("reupload-btn");
 
-  // Parse server-sent times (prevents cheating via client clock changes)
-  const deadline = new Date(el.dataset.deadline);
-  const serverNow = new Date(el.dataset.now);
-  const clientNow = new Date();
-  const offsetMs = clientNow - serverNow; // client - server
-
-  const btn = document.getElementById("reupload-btn");
-
-  function fmt(ms) {
-    if (ms <= 0) return "00:00:00";
-    const totalSec = Math.floor(ms / 1000);
-    const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
-    const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
-    const s = String(totalSec % 60).padStart(2, "0");
-    return `${h}:${m}:${s}`;
-  }
-
-  function showTimeUp() {
-    if (btn) {
-      btn.classList.remove("btn-warning");
-      btn.classList.add("btn-secondary");
-      btn.setAttribute("aria-disabled", "true");
-      btn.style.pointerEvents = "none";
-      btn.textContent = "Time up";
+  function tick(){
+    const now=new Date(Date.now()-offset);
+    const ms=deadline-now;
+    if(ms<=0){
+      el.textContent="00:00:00";
+      if(btn){btn.classList.replace("btn-warning","btn-secondary");btn.textContent="Time up";btn.style.pointerEvents="none";}
+      return;
     }
-    const alert = document.createElement("div");
-    alert.className = "alert alert-danger mt-3";
-    alert.innerHTML = "<strong>Time up</strong> — the 24-hour window to reupload has expired.";
-    const body = el.closest(".card-body");
-    if (body) body.insertBefore(alert, body.firstChild);
-  }
-
-  function tick() {
-    const now = new Date(Date.now() - offsetMs);
-    const remaining = deadline - now;
-
-    if (remaining <= 0) {
-      el.textContent = "00:00:00";
-      showTimeUp();
-      return; // stop
-    }
-
-    el.textContent = fmt(remaining);
+    const s=Math.floor(ms/1000);
+    el.textContent=
+      String(Math.floor(s/3600)).padStart(2,"0")+":"+
+      String(Math.floor((s%3600)/60)).padStart(2,"0")+":"+
+      String(s%60).padStart(2,"0");
     requestAnimationFrame(tick);
   }
-
   tick();
 })();
 </script>
+{% endif %}
 {% endblock %}
