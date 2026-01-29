@@ -639,19 +639,22 @@ def student_dashboard():
     jobs = [objectid_to_str(j) for j in jobs_col.find().sort("created_at", -1)]
 
     # --- Enrich application data ---
-    for a in applications:
-     job = jobs_col.find_one({"_id": mongo_objid_from_str(a.get("job_id"))})
+# --- Enrich application data ---
+for a in applications:
+    job = jobs_col.find_one({"_id": mongo_objid_from_str(a.get("job_id"))})
+
     a["job_title"] = job.get("title") if job else a.get("job_title", "Unknown Job")
 
-    # ✅ Ensure application_time exists (fallback to created_at or now)
+    # Ensure application_time exists
     if not a.get("application_time"):
         a["application_time"] = a.get("created_at") or local_dt_now()
 
-    # progress bar stage tracking
     stages = ["submitted", "under_review", "corrections_needed", "approved", "rejected"]
-    a["status_index"] = stages.index(a.get("status", "submitted")) if a.get("status") in stages else 0
+    a["status_index"] = (
+        stages.index(a.get("status", "submitted"))
+        if a.get("status") in stages else 0
+    )
 
-    # Format time fields
     a["deadline_str"] = utc_to_ist_str(a.get("deadline"))
     a["resume_upload_ist"] = utc_to_ist_str(a.get("resume_upload_time"))
 
