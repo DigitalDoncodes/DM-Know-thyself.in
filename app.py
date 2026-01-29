@@ -608,15 +608,15 @@ def register():
 @student_required
 def student_dashboard():
     """Display all jobs and the student's active application with full tracking."""
+
     student_id = str(current_user.id)
+
     try:
         student_oid = ObjectId(student_id)
     except Exception:
         student_oid = None
 
-    print(f"🟢 [DEBUG] Current Student ID: {student_id}")
-
-    # Match both ObjectId and string for user_id, applicant_id, student_id
+    # Match both ObjectId and string
     query = {
         "$or": [
             {"applicant_id": student_oid},
@@ -627,50 +627,65 @@ def student_dashboard():
         ]
     }
 
-    print(f"🟢 [DEBUG] Query being used: {query}")
+    applications = list(
+        applications_col.find(query).sort("application_time", -1)
+    )
 
-    applications = list(applications_col.find(query).sort("application_time", -1))
-    print(f"🟢 [DEBUG] Found {len(applications)} applications for this student.")
-
-    for a in applications:
-        print(f"   - App: {a.get('_id')} | Job: {a.get('job_title')} | Status: {a.get('status')} | user_id={a.get('user_id')}")
-
-    # --- Load jobs ---
+    # Load jobs
     jobs = [objectid_to_str(j) for j in jobs_col.find().sort("created_at", -1)]
 
-    # --- Enrich application data ---
-# --- Enrich application data ---
-# --- Enrich application data ---
-for a in applications:
-    job = jobs_col.find_one({"_id": mongo_objid_from_str(a.get("job_id"))})
-    a["job_title"] = job.get("title") if job else a.get("job_title", "Unknown Job")
+    # -------- Enrich applications --------
+    for a in applications:
+        job = jobs_col.find_one(
+            {"_id": mongo_objid_from_str(a.get("job_id"))}
+        )
 
-    # Ensure application_time exists
-    if not a.get("application_time"):
-        a["application_time"] = a.get("created_at") or local_dt_now()
+        a["job_title"] = (
+            job.get("title")
+            if job else a.get("job_title", "Unknown Job")
+        )
 
-    # Progress tracker index
-    stages = ["submitted", "under_review", "corrections_needed", "approved", "rejected"]
-    a["status_index"] = (
-        stages.index(a.get("status"))
-        if a.get("status") in stages
-        else 0
-    )
+        # Ensure application_time exists
+        if not a.get("application_time"):
+            a["application_time"] = a.get("created_at") or local_dt_now()
 
-    # Format times
-    a["deadline_str"] = utc_to_ist_str(a.get("deadline"))
-    a["resume_upload_ist"] = utc_to_ist_str(a.get("resume_upload_time"))
+        # Progress tracker index
+        stages = [
+            "submitted",
+            "under_review",
+            "corrections_needed",
+            "approved",
+            "rejected",
+        ]
 
-    # --- Identify active application ---
+        a["status_index"] = (
+            stages.index(a["status"])
+            if a.get("status") in stages
+            else 0
+        )
+
+        # Format times
+        a["deadline_str"] = utc_to_ist_str(a.get("deadline"))
+        a["resume_upload_ist"] = utc_to_ist_str(
+            a.get("resume_upload_time")
+        )
+
+    # -------- Active application --------
     active_app = next(
-        (a for a in applications if a.get("status") in (
-            "submitted", "under_review", "corrections_needed", "upload_required"
-        )),
+        (
+            a for a in applications
+            if a.get("status") in {
+                "submitted",
+                "under_review",
+                "corrections_needed",
+                "upload_required",
+                "resubmitted",
+            }
+        ),
         None
     )
-    has_active = bool(active_app)
 
-    print(f"🟢 [DEBUG] Active Application Found: {bool(active_app)}")
+    has_active = bool(active_app)
 
     return render_template(
         "student_dashboard.html",
@@ -679,26 +694,9 @@ for a in applications:
         active_app=active_app,
         has_active=has_active,
         current_user=current_user,
-        timedelta=timedelta
+        timedelta=timedelta,
+        now_utc=local_dt_now(),   # REQUIRED by template
     )
-
-class User(UserMixin):
-    def __init__(self, data):
-        self.id = str(data.get("_id", data.get("email")))
-        self.email = data.get("email")
-        self.name = data.get("name")
-        self.role = data.get("role", "student")
-
-    def has_applied(self, job):
-        """Check if the current student has already applied for this job."""
-        from bson import ObjectId
-        from app import db  # use your MongoDB client directly
-        application = db.applications.find_one({
-            "applicant_id": ObjectId(self.id),
-            "job_id": job["_id"]
-        })
-        return application is not None
-    
 @app.route("/job/<job_id>", methods=["GET", "POST"])
 @login_required
 @student_required
